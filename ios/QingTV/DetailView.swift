@@ -6,26 +6,27 @@ struct DetailView: View {
     let pic: String
     let rate: String
 
+    @State private var hits: [SearchHit] = []
     @State private var lines: [PlayLine] = []
     @State private var msg = "正在搜源…"
     @State private var sel = 0
+    @State private var poster = ""
+    @State private var matched = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
-                AsyncImage(url: URL(string: pic)) { img in
-                    img.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.white.opacity(0.06)
-                }
-                .frame(width: 96, height: 136)
-                .clipped()
-                .cornerRadius(8)
-
+                posterView
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title).font(.title3).bold().foregroundColor(.white)
                     if !rate.isEmpty {
                         Text("评分 \(rate)").font(.subheadline).foregroundColor(.orange)
+                    }
+                    if !matched.isEmpty {
+                        Text("匹配：\(matched)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                     Text(msg).font(.caption).foregroundColor(.secondary)
                 }
@@ -72,27 +73,84 @@ struct DetailView: View {
         .background(Color.black.ignoresSafeArea())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { if poster.isEmpty { poster = pic } }
         .task { await search() }
+    }
+
+    /// 封面：先用豆瓣的；豆瓣没有就用搜到的第一条 cms 结果
+    private var posterView: some View {
+        ZStack {
+            AsyncImage(url: URL(string: poster)) { img in
+                img.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                ZStack {
+                    Color.white.opacity(0.06)
+                    Image(systemName: "photo").foregroundColor(.secondary)
+                }
+            }
+        }
+        .frame(width: 96, height: 136)
+        .clipped()
+        .cornerRadius(8)
     }
 
     private func search() async {
         let kw = Douban.keyword(title)
-        var acc: [PlayLine] = []
-        await withTaskGroup(of: [PlayLine].self) { group in
+        var accHits: [SearchHit] = []
+        var accLines: [PlayLine] = []
+
+        await withTaskGroup(of: [SearchHit].self) { group in
             for s in store.sites.prefix(10) {
                 group.addTask { await Cms.search(s, kw: kw) }
             }
-            for await r in group {
-                acc.append(contentsOf: r)
-                let snap = acc
+            for await siteHits in group {
+                for h in siteHits {
+                    // 去重：同站点同名的不重复加
+                    if accHits.contains(where: { $0.site == h.site && $0.name == h.name }) { continue }
+                    accHits.append(h)
+                    accLines.append(contentsOf: h.plays)
+                }
+                let snapHits = accHits
+                let snapLines = accLines
                 await MainActor.run {
-                    lines = snap
-                    msg = snap.isEmpty ? "搜索中…" : "找到 \(snap.count) 条线路"
+                    hits = snapHits
+                    lines = snapLines
+                    // 封面匹配：豆瓣没给图，就用命中的 cms 封面
+                    if poster.isEmpty, let p = snapHits.first(where: { !$0.pic.isEmpty })?.pic {
+                        poster = p
+                    }
+                    if matched.isEmpty, let first = snapHits.first {
+                        matched = "\(first.name)（\(first.site)）"
+                    }
+                    msg = snapLines.isEmpty ? "搜索中…" : "找到 \(snapLines.count) 条线路"
                 }
             }
         }
-        if acc.isEmpty {
+
+        if accLines.isEmpty {
             await MainActor.run { msg = "没搜到能播的，回首页换个片或直接搜索" }
+        } else {
+            // 优先选和片名最像的那条线路
+            await MainActor.run {
+                if let idx = bestLineIndex(target: title, lines: lines) { sel = idx }
+                if let best = lines.first(where: { $0.site == hits.first?.site }) { _ = best }
+            }
         }
+    }
+
+    /// 片名相似度：完全包含优先，其次按公共字数
+    private func bestLineIndex(target: String, lines: [PlayLine]) -> Int? {
+        guard !lines.isEmpty else { return nil }
+        let t = target.lowercased()
+        var best = 0
+        var bestScore = -1
+        for (i, l) in lines.enumerated() {
+            let n = l.name.lowercased()
+            var score = 0
+            if n.contains(t) || t.contains(n) { score += 100 }
+            score += n.filter { t.contains($0) }.count
+            if score > bestScore { bestScore = score; best = i }
+        }
+        return best
     }
 }
