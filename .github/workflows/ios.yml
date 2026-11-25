@@ -1,5 +1,4 @@
 name: build-ipa
-
 on:
   push:
     paths:
@@ -9,44 +8,29 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
-    timeout-minutes: 25
+    runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
-      - name: 安装 xcodegen
+      - name: Install xcodegen
         run: brew install xcodegen
-
-      - name: 生成 Xcode 工程
+      - name: Generate project
         working-directory: ios
         run: xcodegen generate
-
-      - name: 编译 Release（关闭签名）
+      - name: Build
         working-directory: ios
         run: |
-          xcodebuild \
-            -project QingTV.xcodeproj \
-            -scheme QingTV \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build
-
-      - name: 检查产物
-        run: ls -la ios/build/Build/Products/Release-iphoneos/
-
-      - name: 打成 ipa
+          set -o pipefail
+          xcodebuild -project QingTV.xcodeproj -scheme QingTV -configuration Release \
+            -sdk iphoneos -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Package ipa
         run: |
           mkdir -p Payload
           cp -R ios/build/Build/Products/Release-iphoneos/QingTV.app Payload/
           zip -qry QingTV.ipa Payload
           ls -lh QingTV.ipa
-
-      - name: 上传 ipa
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: QingTV-ipa
           path: QingTV.ipa
