@@ -20,6 +20,16 @@ struct PlayLine: Identifiable, Hashable {
     let eps: [Ep]
 }
 
+/// 一次 cms 搜索的命中：带封面、备注，用来做「封面匹配」和「片名核对」
+struct SearchHit: Identifiable, Hashable {
+    let id = UUID()
+    let site: String
+    let name: String
+    let pic: String
+    let remark: String
+    let plays: [PlayLine]
+}
+
 struct Site: Identifiable, Hashable, Codable {
     var id: String { api }
     let name: String
