@@ -1,4 +1,4 @@
-﻿name: QingTV
+name: QingTV
 options:
   bundleIdPrefix: com.qing
   deploymentTarget:
@@ -33,4 +33,3 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: "NO"
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
-
