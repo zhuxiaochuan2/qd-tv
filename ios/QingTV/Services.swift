@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - 豆瓣（只用来发现片名/海报/评分）
+// MARK: - 豆瓣（发现片名/海报/评分）
 
 enum Douban {
     static func list(type: String, tag: String, start: Int) async -> [DoubanItem] {
@@ -47,19 +47,28 @@ enum Cms {
 
     static func base(_ api: String) -> String { api.hasSuffix("/") ? api : api + "/" }
 
-    static func search(_ site: Site, kw: String) async -> [PlayLine] {
+    /// 搜索站点，返回「命中」而不是扁平的线路，方便做封面/片名匹配
+    static func search(_ site: Site, kw: String) async -> [SearchHit] {
         let e = kw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? kw
         let u = base(site.api) + "?ac=videolist&wd=\(e)&pg=1"
         guard let j = try? await Net.json(u, timeout: 9) else { return [] }
         let list = (j["list"] as? [[String: Any]]) ?? []
-        var out: [PlayLine] = []
+        var hits: [SearchHit] = []
         for o in list.prefix(3) {
             let from = o["vod_play_from"] as? String ?? ""
             let urls = o["vod_play_url"] as? String ?? ""
-            out.append(contentsOf: parsePlays(site: site.name, from: from, urls: urls))
-            if out.count >= 12 { break }
+            let plays = parsePlays(site: site.name, from: from, urls: urls)
+            guard !plays.isEmpty else { continue }
+            var pic = o["vod_pic"] as? String ?? ""
+            if pic.hasPrefix("//") { pic = "https:" + pic }
+            hits.append(SearchHit(site: site.name,
+                                  name: o["vod_name"] as? String ?? "",
+                                  pic: pic,
+                                  remark: o["vod_remarks"] as? String ?? "",
+                                  plays: plays))
+            if hits.count >= 3 { break }
         }
-        return out
+        return hits
     }
 
     static func parsePlays(site: String, from: String, urls: String) -> [PlayLine] {
@@ -203,7 +212,6 @@ enum Live {
             }
             if out.count > 600 { break }
         }
-        // 去重
         var seen = Set<String>()
         return out.filter { seen.insert($0.url).inserted }
     }
