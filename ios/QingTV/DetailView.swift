@@ -79,19 +79,9 @@ struct DetailView: View {
 
     /// 封面：先用豆瓣的；豆瓣没有就用搜到的第一条 cms 结果
     private var posterView: some View {
-        ZStack {
-            AsyncImage(url: URL(string: poster)) { img in
-                img.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                ZStack {
-                    Color.white.opacity(0.06)
-                    Image(systemName: "photo").foregroundColor(.secondary)
-                }
-            }
-        }
-        .frame(width: 96, height: 136)
-        .clipped()
-        .cornerRadius(8)
+        NetImage(url: poster)
+            .frame(width: 96, height: 136)
+            .cornerRadius(8)
     }
 
     private func search() async {
