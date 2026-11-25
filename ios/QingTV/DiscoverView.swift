@@ -17,6 +17,8 @@ struct DiscoverView: View {
         ("tv", "综艺", "综艺"),
         ("movie", "豆瓣高分", "高分电影"),
         ("tv", "豆瓣高分", "高分剧集"),
+        ("movie", "动画", "动画片"),
+        ("tv", "日本动画", "动画番剧"),
     ]
 
     var body: some View {
