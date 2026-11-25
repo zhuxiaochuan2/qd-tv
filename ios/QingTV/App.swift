@@ -6,10 +6,15 @@ struct QingTVApp: App {
     @StateObject private var store = Store()
 
     init() {
-        // 关键：不设成 .playback，iPhone 静音键一拨就没声音
+        // 音频会话：抬起播放级别，静音键不影响
         let s = AVAudioSession.sharedInstance()
         try? s.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .allowBluetooth])
         try? s.setActive(true)
+
+        // 图片缓存调大，翻页不重复下
+        URLCache.shared = URLCache(memoryCapacity: 64 * 1024 * 1024,
+                                   diskCapacity: 256 * 1024 * 1024,
+                                   diskPath: "qd_image_cache")
     }
 
     var body: some Scene {
@@ -35,6 +40,7 @@ struct RootView: View {
                     SettingsView()
                         .tabItem { Label("设置", systemImage: "slider.horizontal.3") }
                 }
+                .tint(Theme.accent)
             }
         }
         .preferredColorScheme(.dark)
