@@ -23,77 +23,158 @@ struct DiscoverView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(0..<tabs.count, id: \.self) { i in
-                            Button(tabs[i].2) {
-                                tab = i; start = 0; isSearchResult = false; load()
-                            }
-                            .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(i == tab && !isSearchResult ? Color.blue : Color.white.opacity(0.08))
-                            .foregroundColor(.white)
-                            .cornerRadius(9)
-                        }
-                    }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                }
+            ZStack {
+                BrandBackground()
 
-                Text(msg)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-
-                ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 12) {
-                        ForEach(items) { it in
-                            NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    NetImage(url: it.pic)
-                                        .frame(height: 158)
-                                        .cornerRadius(8)
-                                    Text(it.name)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                        .foregroundColor(.white)
+                VStack(spacing: 0) {
+                    // 分类药丸
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(0..<tabs.count, id: \.self) { i in
+                                Button {
+                                    tab = i; start = 0; isSearchResult = false; load()
+                                } label: {
+                                    Pill(text: tabs[i].2,
+                                         selected: i == tab && !isSearchResult)
                                 }
                             }
                         }
+                        .padding(.horizontal, 14).padding(.vertical, 10)
                     }
-                    .padding(12)
 
-                    if !isSearchResult {
-                        HStack(spacing: 14) {
-                            Button("上一页") { start = max(0, start - 20); load() }
-                                .disabled(start == 0)
-                            Button("下一页") { start += 20; load() }
+                    HStack(spacing: 6) {
+                        Circle().fill(Theme.accent).frame(width: 5, height: 5)
+                        Text(msg).font(.caption2).foregroundColor(Theme.dim)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+
+                    ScrollView {
+                        if loading && items.isEmpty {
+                            skeletonGrid
+                        } else {
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
+                                      spacing: 14) {
+                                ForEach(items) { it in
+                                    NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
+                                        posterCard(it)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.top, 10)
+
+                            if !isSearchResult {
+                                pager
+                            }
                         }
-                        .padding(.bottom, 24)
                     }
                 }
             }
-            .background(Color.black.ignoresSafeArea())
             .navigationTitle("轻电视")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                Button { showSearch = true } label: { Image(systemName: "magnifyingglass") }
+                Button { showSearch = true } label: {
+                    Image(systemName: "magnifyingglass").font(.body.weight(.semibold))
+                }
             }
             .sheet(isPresented: $showSearch) { searchSheet }
             .task { if items.isEmpty { load() } }
+            .tint(Theme.accent)
         }
     }
 
+    // MARK: - 卡片
+
+    private func posterCard(_ it: DoubanItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ZStack(alignment: .topTrailing) {
+                NetImage(url: it.pic)
+                    .frame(height: 168)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white.opacity(0.07), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.35), radius: 6, y: 3)
+
+                if !it.rate.isEmpty && it.rate != "0" {
+                    Text(it.rate)
+                        .font(.caption2).bold()
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Theme.warm)
+                        .foregroundColor(.black)
+                        .clipShape(Capsule())
+                        .padding(6)
+                }
+            }
+            Text(it.name)
+                .font(.caption)
+                .foregroundColor(Theme.text)
+                .lineLimit(1)
+        }
+    }
+
+    private var skeletonGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 14) {
+            ForEach(0..<9, id: \.self) { _ in
+                VStack(alignment: .leading, spacing: 6) {
+                    Skeleton(height: 168)
+                    Skeleton(height: 10)
+                }
+            }
+        }
+        .padding(.horizontal, 12).padding(.top, 10)
+    }
+
+    private var pager: some View {
+        HStack(spacing: 16) {
+            Button { start = max(0, start - 20); load() } label: {
+                Label("上一页", systemImage: "chevron.left")
+                    .font(.footnote)
+            }
+            .disabled(start == 0)
+            .opacity(start == 0 ? 0.35 : 1)
+
+            Text("第 \(start / 20 + 1) 页")
+                .font(.caption2).foregroundColor(Theme.dim)
+
+            Button { start += 20; load() } label: {
+                Label("下一页", systemImage: "chevron.right")
+                    .font(.footnote)
+            }
+        }
+        .padding(.vertical, 22)
+    }
+
     private var searchSheet: some View {
-        VStack(spacing: 16) {
-            TextField("输入片名", text: $query)
-                .textFieldStyle(.roundedBorder)
-                .submitLabel(.search)
-                .onSubmit { runSearch() }
-            Button("搜索") { runSearch() }
-                .buttonStyle(.borderedProminent)
+        VStack(spacing: 18) {
+            Capsule().fill(Color.white.opacity(0.2)).frame(width: 40, height: 5).padding(.top, 8)
+            Text("搜索片名").font(.headline)
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").foregroundColor(Theme.dim)
+                TextField("输入片名", text: $query)
+                    .submitLabel(.search)
+                    .onSubmit { runSearch() }
+            }
+            .padding(12)
+            .background(Theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Button {
+                runSearch()
+            } label: {
+                Text("搜索").bold().frame(maxWidth: .infinity).padding(.vertical, 12)
+            }
+            .background(Theme.accent)
+            .foregroundColor(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
             Spacer()
         }
         .padding(20)
+        .background(Theme.bgTop.ignoresSafeArea())
     }
 
     private func runSearch() {
