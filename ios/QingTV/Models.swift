@@ -79,7 +79,7 @@ final class Store: ObservableObject {
     private let livesKey = "qd_lives"
     private let subKey = "qd_sub"
 
-    init() { load() }
+    init() { load(); loadKids() }
 
     func load() {
         if let d = UserDefaults.standard.data(forKey: sitesKey),
@@ -92,6 +92,46 @@ final class Store: ObservableObject {
         if let d = try? JSONEncoder().encode(sites) { UserDefaults.standard.set(d, forKey: sitesKey) }
         UserDefaults.standard.set(lives, forKey: livesKey)
         UserDefaults.standard.set(subscription, forKey: subKey)
+    }
+
+
+    // MARK: - 儿童模式
+
+    @Published var kidsMode: Bool = false
+    @Published var kidsPwd: String = "1234"
+
+    private let kidsKey = "qd_kids_mode"
+    private let pwdKey = "qd_kids_pwd"
+
+    func loadKids() {
+        kidsMode = UserDefaults.standard.bool(forKey: kidsKey)
+        if let p = UserDefaults.standard.string(forKey: pwdKey), !p.isEmpty { kidsPwd = p }
+    }
+
+    func saveKids() {
+        UserDefaults.standard.set(kidsMode, forKey: kidsKey)
+        UserDefaults.standard.set(kidsPwd, forKey: pwdKey)
+    }
+
+    func setKidsPwd(_ p: String) {
+        guard !p.isEmpty else { return }
+        kidsPwd = p
+        saveKids()
+    }
+
+    func enterKidsMode() {
+        kidsMode = true
+        saveKids()
+    }
+
+    @discardableResult
+    func exitKidsMode(pwd: String) -> Bool {
+        if pwd == kidsPwd {
+            kidsMode = false
+            saveKids()
+            return true
+        }
+        return false
     }
 
     func apply(_ newSites: [Site]) {
