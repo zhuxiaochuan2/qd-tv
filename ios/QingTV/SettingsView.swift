@@ -7,9 +7,39 @@ struct SettingsView: View {
     @State private var repos: [Repo] = []
     @State private var busy = false
 
+    // 儿童模式
+    @State private var showKidsSheet = false
+    @State private var kidsSheetMode = 0        // 0=设密码并开启  1=输密码关闭  2=改密码
+    @State private var pwd1 = ""
+    @State private var pwd2 = ""
+    @State private var pwdMsg = ""
+
     var body: some View {
         NavigationView {
             Form {
+                Section(header: Text("儿童模式"),
+                        footer: Text("开启后 App 只显示动画片，退出要输密码。孩子拿手机也跑不出去。")) {
+                    if store.kidsMode {
+                        HStack {
+                            Text("正在儿童模式")
+                            Spacer()
+                            Text("🔒").font(.title3)
+                        }
+                        Button("退出儿童模式（要密码）") {
+                            kidsSheetMode = 1; pwd1 = ""; pwd2 = ""; pwdMsg = ""; showKidsSheet = true
+                        }
+                        .foregroundColor(.orange)
+                    } else {
+                        Button("开启儿童模式") {
+                            kidsSheetMode = 0; pwd1 = ""; pwd2 = ""; pwdMsg = ""; showKidsSheet = true
+                        }
+                        .foregroundColor(.green)
+                    }
+                    Button("修改密码") {
+                        kidsSheetMode = 2; pwd1 = ""; pwd2 = ""; pwdMsg = ""; showKidsSheet = true
+                    }
+                }
+
                 Section(header: Text("TVBox 订阅（多仓 / 单仓）")) {
                     TextField("订阅地址", text: $sub)
                         .textInputAutocapitalization(.never)
@@ -60,12 +90,66 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("关于")) {
-                    Text("轻电视 1.0 · 纯客户端壳，不含任何内容").font(.caption)
-                    Text("发现用豆瓣，播放靠 cms 搜索匹配，无广告、无登录、无推送。").font(.caption2).foregroundColor(.secondary)
+                    Text("轻电视 1.1.0 · 纯客户端壳，不含任何内容").font(.caption)
+                    Text("发现用豆瓣，播放靠 cms 搜索匹配。无广告、无登录、无推送。").font(.caption2).foregroundColor(.secondary)
                 }
             }
             .navigationTitle("设置")
             .onAppear { if sub.isEmpty { sub = store.subscription } }
+            .sheet(isPresented: $showKidsSheet) { kidsSheet }
+        }
+    }
+
+    private var kidsSheet: some View {
+        VStack(spacing: 14) {
+            Text(kidsSheetMode == 0 ? "设置儿童模式密码"
+                 : (kidsSheetMode == 1 ? "退出儿童模式" : "修改密码"))
+                .font(.headline)
+
+            SecureField(kidsSheetMode == 2 ? "原密码" : "密码（建议 4 位数字）", text: $pwd1)
+                .textFieldStyle(.roundedBorder)
+                .keyboardType(.numberPad)
+
+            if kidsSheetMode != 1 {
+                SecureField("再输一次", text: $pwd2)
+                    .textFieldStyle(.roundedBorder)
+                    .keyboardType(.numberPad)
+            }
+
+            if !pwdMsg.isEmpty {
+                Text(pwdMsg).font(.caption).foregroundColor(.red)
+            }
+
+            HStack(spacing: 12) {
+                Button("取消") { showKidsSheet = false }
+                    .buttonStyle(.bordered)
+                Button("确定") { doKids() }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(24)
+    }
+
+    private func doKids() {
+        switch kidsSheetMode {
+        case 0:   // 开启：设密码
+            guard pwd1.count >= 4 else { pwdMsg = "至少 4 位"; return }
+            guard pwd1 == pwd2 else { pwdMsg = "两次不一样"; return }
+            store.setKidsPwd(pwd1)
+            store.enterKidsMode()
+            showKidsSheet = false
+        case 1:   // 关闭：验密码
+            if store.exitKidsMode(pwd: pwd1) {
+                showKidsSheet = false
+            } else {
+                pwdMsg = "密码不对"
+            }
+        default:  // 改密码：先验旧的
+            guard pwd1 == store.kidsPwd else { pwdMsg = "原密码不对"; return }
+            guard pwd2.count >= 4 else { pwdMsg = "新密码至少 4 位"; return }
+            store.setKidsPwd(pwd2)
+            showKidsSheet = false
+            msg = "密码已改"
         }
     }
 
