@@ -48,7 +48,9 @@ struct DiscoverView: View {
                         ForEach(items) { it in
                             NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    poster(it.pic)
+                                    NetImage(url: it.pic)
+                                        .frame(height: 158)
+                                        .cornerRadius(8)
                                     Text(it.name)
                                         .font(.caption)
                                         .lineLimit(1)
@@ -77,17 +79,6 @@ struct DiscoverView: View {
             .sheet(isPresented: $showSearch) { searchSheet }
             .task { if items.isEmpty { load() } }
         }
-    }
-
-    private func poster(_ url: String) -> some View {
-        AsyncImage(url: URL(string: url)) { img in
-            img.resizable().aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Color.white.opacity(0.06)
-        }
-        .frame(height: 158)
-        .clipped()
-        .cornerRadius(8)
     }
 
     private var searchSheet: some View {
