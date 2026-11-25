@@ -14,75 +14,133 @@ struct DetailView: View {
     @State private var matched = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 12) {
-                posterView
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title).font(.title3).bold().foregroundColor(.white)
-                    if !rate.isEmpty {
-                        Text("评分 \(rate)").font(.subheadline).foregroundColor(.orange)
+        ZStack {
+            BrandBackground()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    header
+
+                    if !lines.isEmpty {
+                        linesRow
+                        epsGrid
+                    } else {
+                        ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.top, 40)
                     }
-                    if !matched.isEmpty {
-                        Text("匹配：\(matched)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    Text(msg).font(.caption).foregroundColor(.secondary)
                 }
-                Spacer()
+                .padding(.bottom, 30)
             }
-            .padding(16)
-
-            if !lines.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(lines.enumerated()), id: \.element.id) { i, l in
-                            Button("\(l.site)·\(l.name)") { sel = i }
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(i == sel ? Color.blue : Color.white.opacity(0.08))
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                                .font(.footnote)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-
-                ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                        ForEach(lines[sel].eps) { e in
-                            NavigationLink(destination: PlayerView(urlString: e.url, title: "\(title) \(e.name)")) {
-                                Text(e.name)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 9)
-                                    .background(Color.white.opacity(0.08))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                        }
-                    }
-                    .padding(16)
-                }
-            }
-
-            Spacer(minLength: 0)
         }
-        .background(Color.black.ignoresSafeArea())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { if poster.isEmpty { poster = pic } }
         .task { await search() }
     }
 
-    /// 封面：先用豆瓣的；豆瓣没有就用搜到的第一条 cms 结果
-    private var posterView: some View {
-        NetImage(url: poster)
-            .frame(width: 96, height: 136)
-            .cornerRadius(8)
+    // MARK: - 头部
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 14) {
+            NetImage(url: poster)
+                .frame(width: 104, height: 148)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .shadow(color: .black.opacity(0.45), radius: 10, y: 5)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.title3).bold()
+                    .foregroundColor(Theme.text)
+                    .lineLimit(2)
+
+                if !rate.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill").font(.caption2)
+                        Text(rate).font(.footnote).bold()
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Theme.warm)
+                    .foregroundColor(.black)
+                    .clipShape(Capsule())
+                }
+
+                if !matched.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.seal.fill").font(.caption2)
+                        Text(matched).font(.caption2).lineLimit(1)
+                    }
+                    .foregroundColor(Theme.accent)
+                }
+
+                HStack(spacing: 5) {
+                    Circle().fill(Theme.warm).frame(width: 5, height: 5)
+                    Text(msg).font(.caption2).foregroundColor(Theme.dim)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
+
+    // MARK: - 线路
+
+    private var linesRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(lines.enumerated()), id: \.element.id) { i, l in
+                    Button {
+                        withAnimation(.easeOut(duration: 0.15)) { sel = i }
+                    } label: {
+                        VStack(spacing: 2) {
+                            Text(l.site).font(.caption2).opacity(0.7)
+                            Text("\(l.name) · \(l.eps.count)集")
+                                .font(.footnote).bold()
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(i == sel ? Theme.accent : Theme.card)
+                        .foregroundColor(i == sel ? .white : Theme.text)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - 集数
+
+    private var epsGrid: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("选集")
+                .font(.footnote).bold()
+                .foregroundColor(Theme.dim)
+                .padding(.horizontal, 16)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                ForEach(lines[sel].eps) { e in
+                    NavigationLink(destination: PlayerView(urlString: e.url, title: "\(title) \(e.name)")) {
+                        Text(e.name)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(Theme.card)
+                            .foregroundColor(Theme.text)
+                            .clipShape(RoundedRectangle(cornerRadius: 9))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 9)
+                                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - 搜源
 
     private func search() async {
         let kw = Douban.keyword(title)
@@ -95,7 +153,6 @@ struct DetailView: View {
             }
             for await siteHits in group {
                 for h in siteHits {
-                    // 去重：同站点同名的不重复加
                     if accHits.contains(where: { $0.site == h.site && $0.name == h.name }) { continue }
                     accHits.append(h)
                     accLines.append(contentsOf: h.plays)
@@ -105,7 +162,6 @@ struct DetailView: View {
                 await MainActor.run {
                     hits = snapHits
                     lines = snapLines
-                    // 封面匹配：豆瓣没给图，就用命中的 cms 封面
                     if poster.isEmpty, let p = snapHits.first(where: { !$0.pic.isEmpty })?.pic {
                         poster = p
                     }
@@ -118,22 +174,18 @@ struct DetailView: View {
         }
 
         if accLines.isEmpty {
-            await MainActor.run { msg = "没搜到能播的，回首页换个片或直接搜索" }
+            await MainActor.run { msg = "没搜到能播的，换个片试试" }
         } else {
-            // 优先选和片名最像的那条线路
             await MainActor.run {
                 if let idx = bestLineIndex(target: title, lines: lines) { sel = idx }
-                if let best = lines.first(where: { $0.site == hits.first?.site }) { _ = best }
             }
         }
     }
 
-    /// 片名相似度：完全包含优先，其次按公共字数
     private func bestLineIndex(target: String, lines: [PlayLine]) -> Int? {
         guard !lines.isEmpty else { return nil }
         let t = target.lowercased()
-        var best = 0
-        var bestScore = -1
+        var best = 0, bestScore = -1
         for (i, l) in lines.enumerated() {
             let n = l.name.lowercased()
             var score = 0
