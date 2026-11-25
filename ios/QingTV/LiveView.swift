@@ -64,7 +64,6 @@ struct LiveView: View {
                             }
                         }
                         .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
                         .searchable(text: $q, prompt: "搜频道，比如 CCTV5")
                     }
                 }
@@ -77,6 +76,7 @@ struct LiveView: View {
                     Image(systemName: "arrow.clockwise").font(.body.weight(.semibold))
                 }
             }
+            .onAppear { UITableView.appearance().backgroundColor = .clear }
             .task { if chs.isEmpty { await load() } }
             .sheet(item: $playing) { c in
                 NavigationView {
