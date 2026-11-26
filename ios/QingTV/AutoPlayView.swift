@@ -23,7 +23,6 @@ struct AutoPlayView: View {
     @State private var showPicker = false
     @State private var rateValue: Float = 1.0
     @State private var seekRequest: Double = 0
-    @State private var landscape = false
     @State private var failCount = 0
 
     private var curLine: PlayLine? {
@@ -128,16 +127,23 @@ struct AutoPlayView: View {
                 }
 
                 Button {
-                    landscape.toggle()
-                    if landscape { Orientation.landscape() } else { Orientation.portrait() }
+                    if Orientation.isLandscapeNow {
+                        Orientation.portrait()
+                    } else {
+                        Orientation.landscape()
+                    }
                 } label: {
-                    Image(systemName: landscape ? "rectangle.portrait.arrowtriangle.2.inward"
-                                                : "rectangle.landscape.rotate")
-                        .font(.caption.bold())
-                        .padding(.horizontal, 9).padding(.vertical, 6)
-                        .background(Color.black.opacity(0.55))
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
+                    HStack(spacing: 4) {
+                        Image(systemName: Orientation.isLandscapeNow
+                              ? "rectangle.portrait.arrowtriangle.2.inward"
+                              : "rectangle.landscape.rotate")
+                        Text(Orientation.isLandscapeNow ? "竖屏" : "横屏")
+                    }
+                    .font(.caption.bold())
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Color.black.opacity(0.6))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
