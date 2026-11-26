@@ -16,6 +16,7 @@ struct PlayerView: View {
     @State private var real: String?
     @State private var headers: [String: String] = [:]
     @State private var err: String?
+    @Environment(\.presentationMode) private var pm
 
     var body: some View {
         ZStack {
@@ -33,7 +34,8 @@ struct PlayerView: View {
                          },
                          onFail: nil,
                          onSource: nil,
-                         onEpisodes: nil)
+                         onEpisodes: nil,
+                         onClose: { pm.wrappedValue.dismiss() })
                     .ignoresSafeArea()
             } else if let e = err {
                 VStack(spacing: 10) {
@@ -48,7 +50,7 @@ struct PlayerView: View {
             }
         }
         .navigationTitle("")
-        .navigationBarHidden(true)
+        .statusBarHidden(true)
         .task { await resolve() }
     }
 
