@@ -49,10 +49,13 @@ struct KidsView: View {
                                 } label: {
                                     Pill(text: tabs[i].2, selected: i == tab, color: Theme.warm)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .frame(height: 46)
 
                     HStack(spacing: 6) {
                         Circle().fill(Theme.warm).frame(width: 5, height: 5)
@@ -111,6 +114,8 @@ struct KidsView: View {
                                                 .font(.caption)
                                                 .foregroundColor(Theme.text)
                                                 .lineLimit(1)
+                                                .truncationMode(.tail)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
                                         }
                                     }
                                     .buttonStyle(.plain)
@@ -134,6 +139,7 @@ struct KidsView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle("儿童模式")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
