@@ -3,6 +3,7 @@ import AVFoundation
 
 @main
 struct QingTVApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var store = Store()
 
     init() {
