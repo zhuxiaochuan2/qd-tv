@@ -1,6 +1,32 @@
 import SwiftUI
 import AVFoundation
 import UIKit
+import MediaPlayer
+
+/// 系统音量控制（MPVolumeView 里的 UISlider 是唯一公开途径）
+final class VolumeControl {
+    static let shared = VolumeControl()
+    private let box = MPVolumeView(frame: CGRect(x: -1000, y: -1000, width: 20, height: 20))
+
+    var current: Float { AVAudioSession.sharedInstance().outputVolume }
+
+    private var slider: UISlider? {
+        box.subviews.compactMap { $0 as? UISlider }.first
+    }
+
+    func attach() {
+        guard box.superview == nil, let w = UIApplication.shared.windows.first else { return }
+        box.alpha = 0.01
+        box.showsVolumeSlider = true
+        w.addSubview(box)
+    }
+
+    func set(_ v: Float) {
+        attach()
+        guard let sl = slider else { return }
+        DispatchQueue.main.async { sl.value = min(1, max(0, v)) }
+    }
+}
 
 // 爱奇艺风格的绿
 private let iqGreen = Color(red: 0.13, green: 0.78, blue: 0.28)
@@ -53,6 +79,12 @@ struct IQPlayer: View {
     @State private var rate: Float = 1.0
     @State private var hideTask: Task<Void, Never>?
     @State private var toast: String?
+    @State private var hudText: String?
+    @State private var hudIcon = "sun.max.fill"
+    @State private var dragStartY: CGFloat?
+    @State private var dragStartValue: CGFloat = 0
+    @State private var dragIsBrightness = true
+    @State private var hudTask: Task<Void, Never>?
 
     private var shownPos: Double { dragging ? dragValue : position }
     private var progress: Double { duration > 1 ? min(1, max(0, shownPos / duration)) : 0 }
@@ -65,15 +97,59 @@ struct IQPlayer: View {
                 PlayerLayerView(player: p).ignoresSafeArea()
             }
 
-            // 整块画面：单击显隐控件，双击切全屏（不再有左右 ±15 秒）
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) { toggleFullscreen() }
-                .onTapGesture { toggleControls() }
-                .ignoresSafeArea()
+            // 手势层：左半屏上下滑=亮度，右半屏上下滑=音量；单击显隐控件，双击切全屏
+            GeometryReader { geo in
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 12)
+                            .onChanged { v in
+                                if dragStartY == nil {
+                                    dragStartY = v.startLocation.y
+                                    dragIsBrightness = v.startLocation.x < geo.size.width / 2
+                                    dragStartValue = dragIsBrightness
+                                        ? CGFloat(UIScreen.main.brightness)
+                                        : CGFloat(VolumeControl.shared.current)
+                                }
+                                let span = max(120, geo.size.height * 0.7)
+                                let dy = ((dragStartY ?? v.startLocation.y) - v.location.y) / span
+                                let nv = min(1, max(0, dragStartValue + dy))
+                                if dragIsBrightness {
+                                    UIScreen.main.brightness = nv
+                                    hudIcon = "sun.max.fill"
+                                    hudText = "亮度 \(Int(nv * 100))%"
+                                } else {
+                                    VolumeControl.shared.set(Float(nv))
+                                    hudIcon = "speaker.wave.2.fill"
+                                    hudText = "音量 \(Int(nv * 100))%"
+                                }
+                                scheduleHudHide()
+                            }
+                            .onEnded { _ in dragStartY = nil }
+                    )
+                    .onTapGesture(count: 2) { toggleFullscreen() }
+                    .onTapGesture { toggleControls() }
+            }
+            .ignoresSafeArea()
 
             if showCtrl {
                 controls.transition(.opacity)
+            }
+
+            if let h = hudText {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Image(systemName: hudIcon).font(.system(size: 14, weight: .semibold))
+                        Text(h).font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 9)
+                    .background(Color.black.opacity(0.6))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+                    .padding(.bottom, 150)
+                }
+                .allowsHitTesting(false)
             }
 
             if let t = toast {
@@ -370,6 +446,16 @@ struct IQPlayer: View {
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             if !Task.isCancelled {
                 await MainActor.run { withAnimation(.easeOut(duration: 0.2)) { showCtrl = false } }
+            }
+        }
+    }
+
+    private func scheduleHudHide() {
+        hudTask?.cancel()
+        hudTask = Task {
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            if !Task.isCancelled {
+                await MainActor.run { hudText = nil }
             }
         }
     }
