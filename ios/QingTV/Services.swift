@@ -61,10 +61,17 @@ enum Cms {
             guard !plays.isEmpty else { continue }
             var pic = o["vod_pic"] as? String ?? ""
             if pic.hasPrefix("//") { pic = "https:" + pic }
+            let rawDesc = (o["vod_content"] as? String) ?? (o["vod_blurb"] as? String) ?? ""
+            let desc = rawDesc
+                .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                .replacingOccurrences(of: "&nbsp;", with: " ")
+                .replacingOccurrences(of: "&amp;", with: "&")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             hits.append(SearchHit(site: site.name,
                                   name: o["vod_name"] as? String ?? "",
                                   pic: pic,
                                   remark: o["vod_remarks"] as? String ?? "",
+                                  content: String(desc.prefix(400)),
                                   plays: plays))
             if hits.count >= 3 { break }
         }
