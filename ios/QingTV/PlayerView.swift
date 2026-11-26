@@ -19,6 +19,7 @@ struct PlayerView: View {
     @State private var hint: String?
     @State private var rate: Float = 1.0
     @State private var seekRequest: Double = 0     // 点“跳过 60 秒”时累加
+    @State private var landscape: Bool = false
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -51,6 +52,20 @@ struct PlayerView: View {
 
             if real != nil {
                 HStack(spacing: 8) {
+                    Button {
+                        landscape.toggle()
+                        if landscape { Orientation.landscape() } else { Orientation.portrait() }
+                    } label: {
+                        Image(systemName: landscape ? "rectangle.portrait.arrowtriangle.2.inward"
+                                                    : "rectangle.landscape.rotate")
+                            .font(.caption).bold()
+                            .padding(.horizontal, 9).padding(.vertical, 6)
+                            .background(Color.black.opacity(0.55))
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
                     Button {
                         seekRequest += 60
                     } label: {
@@ -95,6 +110,14 @@ struct PlayerView: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            Orientation.landscape()
+            landscape = true
+        }
+        .onDisappear {
+            Orientation.unlock()
+            Orientation.portrait()
+        }
         .task { await resolve() }
     }
 
