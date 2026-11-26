@@ -10,6 +10,7 @@ struct DiscoverView: View {
     @State private var showSearch = false
     @State private var query = ""
     @State private var isSearchResult = false
+    @State private var playTarget: PlayTarget?
 
     private let tabs: [(String, String, String)] = [
         ("movie", "热门", "热门电影"),
@@ -79,6 +80,10 @@ struct DiscoverView: View {
                     }
                 }
                 .sheet(isPresented: $showSearch) { searchSheet }
+                .fullScreenCover(item: $playTarget) { t in
+                    AutoPlayView(title: t.title, pic: t.pic, rate: t.rate)
+                        .environmentObject(store)
+                }
                 .task { if items.isEmpty { load() } }
                 .tint(Theme.accent)
             }
@@ -155,7 +160,9 @@ struct DiscoverView: View {
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
-                NavigationLink(destination: AutoPlayView(title: it.name, pic: it.pic, rate: it.rate)) {
+                Button {
+                    playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate)
+                } label: {
                     card(it, cw: cw, ch: ch)
                 }
                 .buttonStyle(.plain)
