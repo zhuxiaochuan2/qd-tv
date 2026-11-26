@@ -155,10 +155,15 @@ struct DiscoverView: View {
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
-                NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
+                NavigationLink(destination: AutoPlayView(title: it.name, pic: it.pic, rate: it.rate)) {
                     card(it, cw: cw, ch: ch)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
+                        Label("查看详情 / 选线路", systemImage: "list.bullet")
+                    }
+                }
             }
         }
         .padding(.horizontal, hPad)
