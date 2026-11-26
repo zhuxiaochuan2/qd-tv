@@ -20,13 +20,14 @@ struct PlayLine: Identifiable, Hashable {
     let eps: [Ep]
 }
 
-/// 一次 cms 搜索的命中：带封面、备注，用来做「封面匹配」和「片名核对」
+/// 一次 cms 搜索的命中：带封面、简介、备注
 struct SearchHit: Identifiable, Hashable {
     let id = UUID()
     let site: String
     let name: String
     let pic: String
     let remark: String
+    let content: String
     let plays: [PlayLine]
 }
 
@@ -46,6 +47,34 @@ struct Repo: Identifiable, Hashable {
     var id: String { url }
     let name: String
     let url: String
+}
+
+// MARK: - 观看历史 / 收藏
+
+struct HistoryItem: Codable, Identifiable, Hashable {
+    var id: String { title }          // 一部片一条
+    let title: String
+    let pic: String
+    var site: String
+    var line: String
+    var epName: String
+    var epURL: String
+    var position: Double
+    var duration: Double
+    var updatedAt: Double
+
+    var progress: Double {
+        guard duration > 1 else { return 0 }
+        return min(1, max(0, position / duration))
+    }
+}
+
+struct FavItem: Codable, Identifiable, Hashable {
+    var id: String { title }
+    let title: String
+    let pic: String
+    let rate: String
+    let addedAt: Double
 }
 
 /// 默认 cms 源（2026-11 实测能搜到片的）
@@ -75,11 +104,31 @@ final class Store: ObservableObject {
     @Published var lives: [String] = Defaults.lives
     @Published var subscription: String = Defaults.subscription
 
+    // 历史 / 收藏 / 搜索历史
+    @Published var history: [HistoryItem] = []
+    @Published var favorites: [FavItem] = []
+    @Published var searches: [String] = []
+
     private let sitesKey = "qd_sites"
     private let livesKey = "qd_lives"
     private let subKey = "qd_sub"
+    private let historyKey = "qd_history"
+    private let favKey = "qd_fav"
+    private let searchKey = "qd_search"
 
-    init() { load(); loadKids() }
+    // 儿童模式
+    @Published var kidsMode: Bool = false
+    @Published var kidsPwd: String = "1234"
+    private let kidsKey = "qd_kids_mode"
+    private let pwdKey = "qd_kids_pwd"
+
+    init() {
+        load()
+        loadKids()
+        loadHistory()
+    }
+
+    // MARK: - 基础配置
 
     func load() {
         if let d = UserDefaults.standard.data(forKey: sitesKey),
@@ -94,14 +143,13 @@ final class Store: ObservableObject {
         UserDefaults.standard.set(subscription, forKey: subKey)
     }
 
+    func apply(_ newSites: [Site]) {
+        guard !newSites.isEmpty else { return }
+        sites = newSites
+        save()
+    }
 
     // MARK: - 儿童模式
-
-    @Published var kidsMode: Bool = false
-    @Published var kidsPwd: String = "1234"
-
-    private let kidsKey = "qd_kids_mode"
-    private let pwdKey = "qd_kids_pwd"
 
     func loadKids() {
         kidsMode = UserDefaults.standard.bool(forKey: kidsKey)
@@ -134,9 +182,86 @@ final class Store: ObservableObject {
         return false
     }
 
-    func apply(_ newSites: [Site]) {
-        guard !newSites.isEmpty else { return }
-        sites = newSites
-        save()
+    // MARK: - 历史 / 收藏
+
+    private func loadHistory() {
+        if let d = UserDefaults.standard.data(forKey: historyKey),
+           let v = try? JSONDecoder().decode([HistoryItem].self, from: d) {
+            history = v.sorted { $0.updatedAt > $1.updatedAt }
+        }
+        if let d = UserDefaults.standard.data(forKey: favKey),
+           let v = try? JSONDecoder().decode([FavItem].self, from: d) {
+            favorites = v.sorted { $0.addedAt > $1.addedAt }
+        }
+        if let v = UserDefaults.standard.stringArray(forKey: searchKey) { searches = v }
+    }
+
+    private func saveHistory() {
+        if let d = try? JSONEncoder().encode(history) { UserDefaults.standard.set(d, forKey: historyKey) }
+        if let d = try? JSONEncoder().encode(favorites) { UserDefaults.standard.set(d, forKey: favKey) }
+        UserDefaults.standard.set(searches, forKey: searchKey)
+    }
+
+    /// 记录/更新播放进度（同一部片只保留一条）
+    func recordProgress(title: String, pic: String, site: String, line: String,
+                        epName: String, epURL: String, position: Double, duration: Double) {
+        guard !title.isEmpty, !epURL.isEmpty else { return }
+        var item = HistoryItem(title: title, pic: pic, site: site, line: line,
+                               epName: epName, epURL: epURL,
+                               position: position, duration: duration,
+                               updatedAt: Date().timeIntervalSince1970)
+        if let idx = history.firstIndex(where: { $0.title == title }) {
+            // 位置以新的为准，但别把更长剧集的进度冲掉
+            if duration <= 0, history[idx].duration > 0 {
+                item.position = history[idx].position
+                item.duration = history[idx].duration
+            }
+            history.remove(at: idx)
+        }
+        history.insert(item, at: 0)
+        if history.count > 40 { history = Array(history.prefix(40)) }
+        saveHistory()
+    }
+
+    func historyItem(for title: String) -> HistoryItem? {
+        history.first { $0.title == title }
+    }
+
+    func removeHistory(title: String) {
+        history.removeAll { $0.title == title }
+        saveHistory()
+    }
+
+    func clearHistory() {
+        history.removeAll()
+        saveHistory()
+    }
+
+    func isFav(_ title: String) -> Bool {
+        favorites.contains { $0.title == title }
+    }
+
+    func toggleFav(title: String, pic: String, rate: String) {
+        if let idx = favorites.firstIndex(where: { $0.title == title }) {
+            favorites.remove(at: idx)
+        } else {
+            favorites.insert(FavItem(title: title, pic: pic, rate: rate,
+                                     addedAt: Date().timeIntervalSince1970), at: 0)
+        }
+        saveHistory()
+    }
+
+    func pushSearch(_ kw: String) {
+        let k = kw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !k.isEmpty else { return }
+        searches.removeAll { $0 == k }
+        searches.insert(k, at: 0)
+        if searches.count > 12 { searches = Array(searches.prefix(12)) }
+        saveHistory()
+    }
+
+    func clearSearches() {
+        searches.removeAll()
+        saveHistory()
     }
 }
