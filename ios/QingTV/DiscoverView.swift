@@ -21,122 +21,119 @@ struct DiscoverView: View {
         ("tv", "日本动画", "动画番剧"),
     ]
 
-    /// 固定格子宽度：不依赖 flexible 列，彻底避免被父容器撑宽导致左右裁切
     private let hPad: CGFloat = 12
     private let gap: CGFloat = 10
-    private var cellW: CGFloat {
-        let sw = UIScreen.main.bounds.width
-        return floor((sw - hPad * 2 - gap * 2) / 3)
-    }
-    private var cellH: CGFloat { floor(cellW * 1.48) }
-    private var columns: [GridItem] {
-        [GridItem(.fixed(cellW), spacing: gap),
-         GridItem(.fixed(cellW), spacing: gap),
-         GridItem(.fixed(cellW), spacing: gap)]
-    }
 
     var body: some View {
         NavigationView {
-            ZStack {
-                BrandBackground()
+            GeometryReader { geo in
+                let cw = max(80, floor((geo.size.width - hPad * 2 - gap * 2) / 3))
+                let ch = floor(cw * 1.48)
 
-                VStack(spacing: 0) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(0..<tabs.count, id: \.self) { i in
-                                Button {
-                                    tab = i; start = 0; isSearchResult = false; load()
-                                } label: {
-                                    Pill(text: tabs[i].2, selected: i == tab && !isSearchResult)
+                ZStack {
+                    BrandBackground()
+
+                    VStack(spacing: 0) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(0..<tabs.count, id: \.self) { i in
+                                    Button {
+                                        tab = i; start = 0; isSearchResult = false; load()
+                                    } label: {
+                                        Pill(text: tabs[i].2, selected: i == tab && !isSearchResult)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, hPad)
+                        }
+                        .frame(height: 46)
+
+                        HStack(spacing: 6) {
+                            Circle().fill(Theme.accent).frame(width: 5, height: 5)
+                            Text(msg).font(.caption2).foregroundColor(Theme.dim).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 16)
+
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: 0) {
+                                if !isSearchResult && !store.history.isEmpty {
+                                    continueRow(cw: cw, ch: ch)
+                                }
+                                if loading && items.isEmpty {
+                                    skeletonGrid(cw: cw, ch: ch)
+                                } else {
+                                    grid(cw: cw, ch: ch)
+                                }
+                                if !isSearchResult && !items.isEmpty { pager }
                             }
                         }
-                        .padding(.horizontal, hPad)
-                    }
-                    .frame(height: 46)
-
-                    HStack(spacing: 6) {
-                        Circle().fill(Theme.accent).frame(width: 5, height: 5)
-                        Text(msg).font(.caption2).foregroundColor(Theme.dim).lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 16)
-
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 0) {
-                            if !isSearchResult && !store.history.isEmpty { continueRow }
-                            if loading && items.isEmpty { skeletonGrid } else { grid }
-                            if !isSearchResult && !items.isEmpty { pager }
-                        }
                     }
                 }
-            }
-            .navigationTitle("影匣")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                Button { showSearch = true } label: {
-                    Image(systemName: "magnifyingglass").font(.body.weight(.semibold))
+                .navigationTitle("影匣")
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    Button { showSearch = true } label: {
+                        Image(systemName: "magnifyingglass").font(.body.weight(.semibold))
+                    }
                 }
+                .sheet(isPresented: $showSearch) { searchSheet }
+                .task { if items.isEmpty { load() } }
+                .tint(Theme.accent)
             }
-            .sheet(isPresented: $showSearch) { searchSheet }
-            .task { if items.isEmpty { load() } }
-            .tint(Theme.accent)
         }
         .navigationViewStyle(.stack)
     }
 
     // MARK: - 继续观看
 
-    private var continueRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private func continueRow(cw: CGFloat, ch: CGFloat) -> some View {
+        let w: CGFloat = 92
+        let h: CGFloat = 128
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "clock.arrow.circlepath").font(.caption2).foregroundColor(Theme.accent)
                 Text("继续观看").font(.footnote).bold().foregroundColor(Theme.dim)
                 Spacer()
                 Button("清空") { store.clearHistory() }
-                    .font(.caption2)
-                    .foregroundColor(Theme.dim)
+                    .font(.caption2).foregroundColor(Theme.dim)
                     .buttonStyle(.plain)
             }
             .padding(.horizontal, hPad)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(store.history.prefix(10)) { h in
-                        NavigationLink(destination: PlayerView(urlString: h.epURL, title: h.title,
-                                                               pic: h.pic, site: h.site, line: h.line,
-                                                               epName: h.epName, resumeAt: h.position)) {
+                    ForEach(store.history.prefix(10)) { hi in
+                        NavigationLink(destination: PlayerView(urlString: hi.epURL, title: hi.title,
+                                                               pic: hi.pic, site: hi.site, line: hi.line,
+                                                               epName: hi.epName, resumeAt: hi.position)) {
                             VStack(alignment: .leading, spacing: 4) {
                                 ZStack(alignment: .bottom) {
-                                    NetImage(url: h.pic)
-                                        .frame(width: 92, height: 128)
+                                    NetImage(url: hi.pic)
+                                        .frame(width: w, height: h)
                                         .clipShape(RoundedRectangle(cornerRadius: 9))
                                         .overlay(RoundedRectangle(cornerRadius: 9)
                                             .stroke(Color.white.opacity(0.08), lineWidth: 1))
-                                    // 进度条
-                                    GeometryReader { g in
-                                        ZStack(alignment: .leading) {
-                                            Capsule().fill(Color.white.opacity(0.25)).frame(height: 3)
-                                            Capsule().fill(Theme.warm)
-                                                .frame(width: max(2, g.size.width * h.progress), height: 3)
-                                        }
-                                        .frame(maxHeight: .infinity, alignment: .bottom)
-                                        .padding(.horizontal, 5).padding(.bottom, 5)
+                                    ZStack(alignment: .leading) {
+                                        Capsule().fill(Color.white.opacity(0.25)).frame(height: 3)
+                                        Capsule().fill(Theme.warm)
+                                            .frame(width: max(2, (w - 10) * hi.progress), height: 3)
                                     }
-                                    .frame(width: 92, height: 128)
+                                    .frame(width: w - 10, height: 3)
+                                    .padding(.bottom, 6)
                                 }
-                                Text(h.title)
+                                Text(hi.title)
                                     .font(.caption2).foregroundColor(Theme.text)
-                                    .lineLimit(1).frame(width: 92, alignment: .leading)
-                                Text(h.epName + " · " + timeText(h.position))
+                                    .lineLimit(1).frame(width: w, alignment: .leading)
+                                Text(hi.epName + " · " + timeText(hi.position))
                                     .font(.system(size: 9)).foregroundColor(Theme.dim)
-                                    .lineLimit(1).frame(width: 92, alignment: .leading)
+                                    .lineLimit(1).frame(width: w, alignment: .leading)
                             }
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            Button("从记录里删掉", role: .destructive) { store.removeHistory(title: h.title) }
+                            Button("从记录里删掉", role: .destructive) { store.removeHistory(title: hi.title) }
                         }
                     }
                 }
@@ -147,11 +144,19 @@ struct DiscoverView: View {
         .padding(.bottom, 4)
     }
 
-    private var grid: some View {
-        LazyVGrid(columns: columns, spacing: 14) {
+    // MARK: - 网格
+
+    private func columns(_ cw: CGFloat) -> [GridItem] {
+        [GridItem(.fixed(cw), spacing: gap),
+         GridItem(.fixed(cw), spacing: gap),
+         GridItem(.fixed(cw), spacing: gap)]
+    }
+
+    private func grid(cw: CGFloat, ch: CGFloat) -> some View {
+        LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
                 NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
-                    card(it)
+                    card(it, cw: cw, ch: ch)
                 }
                 .buttonStyle(.plain)
             }
@@ -160,11 +165,11 @@ struct DiscoverView: View {
         .padding(.top, 10)
     }
 
-    private func card(_ it: DoubanItem) -> some View {
+    private func card(_ it: DoubanItem, cw: CGFloat, ch: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topTrailing) {
                 NetImage(url: it.pic)
-                    .frame(width: cellW, height: cellH)
+                    .frame(width: cw, height: ch)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10)
                         .stroke(Color.white.opacity(0.07), lineWidth: 1))
@@ -185,17 +190,17 @@ struct DiscoverView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .minimumScaleFactor(0.85)
-                .frame(width: cellW, alignment: .leading)
+                .frame(width: cw, alignment: .leading)
         }
-        .frame(width: cellW)
+        .frame(width: cw)
     }
 
-    private var skeletonGrid: some View {
-        LazyVGrid(columns: columns, spacing: 14) {
+    private func skeletonGrid(cw: CGFloat, ch: CGFloat) -> some View {
+        LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(0..<9, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 6) {
-                    Skeleton(height: cellH).frame(width: cellW)
-                    Skeleton(height: 10).frame(width: cellW)
+                    Skeleton(height: ch).frame(width: cw)
+                    Skeleton(height: 10).frame(width: cw)
                 }
             }
         }
