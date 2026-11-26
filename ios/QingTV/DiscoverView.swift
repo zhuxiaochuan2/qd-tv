@@ -65,6 +65,7 @@ struct DiscoverView: View {
 
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: 0) {
+                            if !isSearchResult && !store.history.isEmpty { continueRow }
                             if loading && items.isEmpty { skeletonGrid } else { grid }
                             if !isSearchResult && !items.isEmpty { pager }
                         }
@@ -83,6 +84,67 @@ struct DiscoverView: View {
             .tint(Theme.accent)
         }
         .navigationViewStyle(.stack)
+    }
+
+    // MARK: - 继续观看
+
+    private var continueRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.arrow.circlepath").font(.caption2).foregroundColor(Theme.accent)
+                Text("继续观看").font(.footnote).bold().foregroundColor(Theme.dim)
+                Spacer()
+                Button("清空") { store.clearHistory() }
+                    .font(.caption2)
+                    .foregroundColor(Theme.dim)
+                    .buttonStyle(.plain)
+            }
+            .padding(.horizontal, hPad)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(store.history.prefix(10)) { h in
+                        NavigationLink(destination: PlayerView(urlString: h.epURL, title: h.title,
+                                                               pic: h.pic, site: h.site, line: h.line,
+                                                               epName: h.epName, resumeAt: h.position)) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                ZStack(alignment: .bottom) {
+                                    NetImage(url: h.pic)
+                                        .frame(width: 92, height: 128)
+                                        .clipShape(RoundedRectangle(cornerRadius: 9))
+                                        .overlay(RoundedRectangle(cornerRadius: 9)
+                                            .stroke(Color.white.opacity(0.08), lineWidth: 1))
+                                    // 进度条
+                                    GeometryReader { g in
+                                        ZStack(alignment: .leading) {
+                                            Capsule().fill(Color.white.opacity(0.25)).frame(height: 3)
+                                            Capsule().fill(Theme.warm)
+                                                .frame(width: max(2, g.size.width * h.progress), height: 3)
+                                        }
+                                        .frame(maxHeight: .infinity, alignment: .bottom)
+                                        .padding(.horizontal, 5).padding(.bottom, 5)
+                                    }
+                                    .frame(width: 92, height: 128)
+                                }
+                                Text(h.title)
+                                    .font(.caption2).foregroundColor(Theme.text)
+                                    .lineLimit(1).frame(width: 92, alignment: .leading)
+                                Text(h.epName + " · " + timeText(h.position))
+                                    .font(.system(size: 9)).foregroundColor(Theme.dim)
+                                    .lineLimit(1).frame(width: 92, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("从记录里删掉", role: .destructive) { store.removeHistory(title: h.title) }
+                        }
+                    }
+                }
+                .padding(.horizontal, hPad)
+            }
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private var grid: some View {
@@ -173,6 +235,35 @@ struct DiscoverView: View {
             .background(Theme.card)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
+            if !store.searches.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("最近搜过").font(.caption2).foregroundColor(Theme.dim)
+                        Spacer()
+                        Button("清空") { store.clearSearches() }
+                            .font(.caption2).foregroundColor(Theme.dim)
+                            .buttonStyle(.plain)
+                    }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(store.searches, id: \.self) { k in
+                                Button {
+                                    query = k
+                                    runSearch()
+                                } label: {
+                                    Text(k).font(.caption)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(Theme.card)
+                                        .foregroundColor(Theme.text)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+
             Button { runSearch() } label: {
                 Text("搜索").bold().frame(maxWidth: .infinity).padding(.vertical, 12)
             }
@@ -193,6 +284,7 @@ struct DiscoverView: View {
         showSearch = false
         loading = true
         msg = "搜索中…"
+        store.pushSearch(q)
         Task {
             let r = await Douban.search(q)
             await MainActor.run {
