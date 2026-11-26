@@ -54,7 +54,9 @@ enum Orientation {
     }
 
     private static func markNeedsUpdate(_ vc: UIViewController) {
-        vc.setNeedsUpdateOfSupportedInterfaceOrientations()
+        if #available(iOS 16.0, *) {
+            vc.setNeedsUpdateOfSupportedInterfaceOrientations()
+        }
         for child in vc.children { markNeedsUpdate(child) }
         if let presented = vc.presentedViewController { markNeedsUpdate(presented) }
     }
