@@ -11,22 +11,26 @@ struct DetailView: View {
     @State private var sel = 0
     @State private var poster = ""
     @State private var matched = ""
+    @State private var desc = ""
     @State private var done = false
 
-    /// 越界保护：sel 永远落在 lines 范围内
     private var eps: [Ep] {
         guard !lines.isEmpty else { return [] }
         let i = min(max(sel, 0), lines.count - 1)
         return lines[i].eps
     }
 
+    private var history: HistoryItem? { store.historyItem(for: title) }
+
     var body: some View {
         ZStack {
             BrandBackground()
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 13) {
                     header
+                    if !desc.isEmpty { descBlock }
+                    if let h = history, h.position > 5 { resumeBanner(h) }
 
                     if lines.isEmpty {
                         VStack(spacing: 10) {
@@ -47,9 +51,16 @@ struct DetailView: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            Button {
+                store.toggleFav(title: title, pic: poster.isEmpty ? pic : poster, rate: rate)
+            } label: {
+                Image(systemName: store.isFav(title) ? "heart.fill" : "heart")
+                    .foregroundColor(store.isFav(title) ? Theme.warm : Theme.text)
+            }
+        }
         .onAppear {
             if poster.isEmpty { poster = pic }
-            // 回来时修正可能越界的选中项
             if !lines.isEmpty && sel >= lines.count { sel = 0 }
         }
         .task { await search() }
@@ -72,23 +83,24 @@ struct DetailView: View {
                     .minimumScaleFactor(0.85)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if !rate.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill").font(.caption2)
-                        Text(rate).font(.footnote).bold()
+                HStack(spacing: 8) {
+                    if !rate.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill").font(.caption2)
+                            Text(rate).font(.footnote).bold()
+                        }
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Theme.warm)
+                        .foregroundColor(.black)
+                        .clipShape(Capsule())
                     }
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Theme.warm)
-                    .foregroundColor(.black)
-                    .clipShape(Capsule())
-                }
-
-                if !matched.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.seal.fill").font(.caption2)
-                        Text(matched).font(.caption2).lineLimit(1)
+                    if !matched.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.seal.fill").font(.caption2)
+                            Text(matched).font(.caption2).lineLimit(1)
+                        }
+                        .foregroundColor(Theme.accent)
                     }
-                    .foregroundColor(Theme.accent)
                 }
 
                 HStack(spacing: 5) {
@@ -102,15 +114,42 @@ struct DetailView: View {
         .padding(.top, 8)
     }
 
-    // MARK: - 线路
+    private var descBlock: some View {
+        Text(desc)
+            .font(.caption2)
+            .foregroundColor(Theme.dim)
+            .lineLimit(5)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 16)
+    }
+
+    private func resumeBanner(_ h: HistoryItem) -> some View {
+        NavigationLink(destination: PlayerView(urlString: h.epURL, title: title, pic: poster,
+                                               site: h.site, line: h.line,
+                                               epName: h.epName, resumeAt: h.position)) {
+            HStack(spacing: 10) {
+                Image(systemName: "play.circle.fill").font(.title3).foregroundColor(Theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("继续观看 \(h.epName)").font(.footnote).bold().foregroundColor(Theme.text)
+                    Text("从 \(timeText(h.position)) 开始 · \(h.site)").font(.caption2).foregroundColor(Theme.dim)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption).foregroundColor(Theme.dim)
+            }
+            .padding(12)
+            .background(Theme.accent.opacity(0.15))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 16)
+        }
+        .buttonStyle(.plain)
+    }
+
 
     private var linesRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(Array(lines.enumerated()), id: \.element.id) { i, l in
-                    Button {
-                        sel = i
-                    } label: {
+                    Button { sel = i } label: {
                         VStack(spacing: 2) {
                             Text(l.site).font(.caption2).opacity(0.7)
                             Text("\(l.name) · \(l.eps.count)集").font(.footnote).bold()
@@ -124,7 +163,6 @@ struct DetailView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(height: 54)
     }
@@ -140,24 +178,37 @@ struct DetailView: View {
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                 ForEach(eps) { e in
-                    NavigationLink(destination: PlayerView(urlString: e.url, title: "\(title) \(e.name)")) {
-                        Text(e.name)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                            .background(Theme.card)
-                            .foregroundColor(Theme.text)
-                            .clipShape(RoundedRectangle(cornerRadius: 9))
-                            .overlay(RoundedRectangle(cornerRadius: 9)
-                                .stroke(Color.white.opacity(0.06), lineWidth: 1))
+                    NavigationLink(destination: player(for: e)) {
+                        epCell(e)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
         }
+    }
+
+    private func epCell(_ e: Ep) -> some View {
+        let watched = history?.epURL == e.url
+        return Text(e.name)
+            .font(.caption)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(watched ? Theme.accent.opacity(0.25) : Theme.card)
+            .foregroundColor(Theme.text)
+            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9)
+                .stroke(watched ? Theme.accent.opacity(0.6) : Color.white.opacity(0.06), lineWidth: 1))
+    }
+
+    private func player(for e: Ep) -> PlayerView {
+        let resume = (history?.epURL == e.url) ? (history?.position ?? 0) : 0
+        let siteName = lines.isEmpty ? "" : lines[min(max(sel, 0), lines.count - 1)].site
+        let lineName = lines.isEmpty ? "" : lines[min(max(sel, 0), lines.count - 1)].name
+        return PlayerView(urlString: e.url, title: title, pic: poster,
+                          site: siteName, line: lineName, epName: e.name, resumeAt: resume)
     }
 
     // MARK: - 搜源
@@ -181,11 +232,12 @@ struct DetailView: View {
                 let snapLines = accLines
                 await MainActor.run {
                     lines = snapLines
-                    if poster.isEmpty, let p = snapHits.first(where: { !$0.pic.isEmpty })?.pic {
-                        poster = p
-                    }
+                    if poster.isEmpty, let p = snapHits.first(where: { !$0.pic.isEmpty })?.pic { poster = p }
                     if matched.isEmpty, let first = snapHits.first {
                         matched = "\(first.name)（\(first.site)）"
+                    }
+                    if desc.isEmpty, let d = snapHits.first(where: { !$0.content.isEmpty })?.content {
+                        desc = d
                     }
                     if sel >= snapLines.count { sel = 0 }
                     msg = snapLines.isEmpty ? "搜索中…" : "找到 \(snapLines.count) 条线路"
@@ -216,4 +268,11 @@ struct DetailView: View {
         }
         return best
     }
+}
+
+func timeText(_ s: Double) -> String {
+    guard s.isFinite, s > 0 else { return "00:00" }
+    let t = Int(s)
+    let h = t / 3600, m = (t % 3600) / 60, sec = t % 60
+    return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
 }
