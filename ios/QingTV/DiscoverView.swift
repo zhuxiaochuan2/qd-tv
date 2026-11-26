@@ -27,50 +27,48 @@ struct DiscoverView: View {
                 BrandBackground()
 
                 VStack(spacing: 0) {
-                    // 分类药丸
+                    // 分类药丸：给固定高度，避免横向 ScrollView 把父容器撑宽（就是之前海报被裁的原因）
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(0..<tabs.count, id: \.self) { i in
                                 Button {
                                     tab = i; start = 0; isSearchResult = false; load()
                                 } label: {
-                                    Pill(text: tabs[i].2,
-                                         selected: i == tab && !isSearchResult)
+                                    Pill(text: tabs[i].2, selected: i == tab && !isSearchResult)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .frame(height: 46)
 
                     HStack(spacing: 6) {
                         Circle().fill(Theme.accent).frame(width: 5, height: 5)
                         Text(msg).font(.caption2).foregroundColor(Theme.dim)
-                        Spacer()
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
+                    .padding(.bottom, 2)
 
-                    ScrollView {
-                        if loading && items.isEmpty {
-                            skeletonGrid
-                        } else {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                                      spacing: 14) {
-                                ForEach(items) { it in
-                                    NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
-                                        posterCard(it)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            if loading && items.isEmpty {
+                                skeletonGrid
+                            } else {
+                                grid
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.top, 10)
-
-                            if !isSearchResult {
+                            if !isSearchResult && !items.isEmpty {
                                 pager
                             }
                         }
+                        .frame(maxWidth: .infinity)
                     }
+                    .frame(maxWidth: .infinity)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .navigationTitle("轻电视")
             .navigationBarTitleDisplayMode(.large)
@@ -83,21 +81,37 @@ struct DiscoverView: View {
             .task { if items.isEmpty { load() } }
             .tint(Theme.accent)
         }
+        .navigationViewStyle(.stack)
     }
 
-    // MARK: - 卡片
+    // MARK: - 网格
 
-    private func posterCard(_ it: DoubanItem) -> some View {
+    private var columns: [GridItem] {
+        [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+    }
+
+    private var grid: some View {
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(items) { it in
+                NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
+                    card(it)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+    }
+
+    private func card(_ it: DoubanItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topTrailing) {
                 NetImage(url: it.pic)
+                    .frame(maxWidth: .infinity)
                     .frame(height: 168)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.white.opacity(0.07), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.35), radius: 6, y: 3)
+                    .overlay(RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.07), lineWidth: 1))
 
                 if !it.rate.isEmpty && it.rate != "0" {
                     Text(it.rate)
@@ -113,11 +127,13 @@ struct DiscoverView: View {
                 .font(.caption)
                 .foregroundColor(Theme.text)
                 .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var skeletonGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 14) {
+        LazyVGrid(columns: columns, spacing: 14) {
             ForEach(0..<9, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 6) {
                     Skeleton(height: 168)
@@ -131,20 +147,20 @@ struct DiscoverView: View {
     private var pager: some View {
         HStack(spacing: 16) {
             Button { start = max(0, start - 20); load() } label: {
-                Label("上一页", systemImage: "chevron.left")
-                    .font(.footnote)
+                Label("上一页", systemImage: "chevron.left").font(.footnote)
             }
+            .buttonStyle(.plain)
             .disabled(start == 0)
             .opacity(start == 0 ? 0.35 : 1)
 
-            Text("第 \(start / 20 + 1) 页")
-                .font(.caption2).foregroundColor(Theme.dim)
+            Text("第 \(start / 20 + 1) 页").font(.caption2).foregroundColor(Theme.dim)
 
             Button { start += 20; load() } label: {
-                Label("下一页", systemImage: "chevron.right")
-                    .font(.footnote)
+                Label("下一页", systemImage: "chevron.right").font(.footnote)
             }
+            .buttonStyle(.plain)
         }
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
     }
 
@@ -162,14 +178,13 @@ struct DiscoverView: View {
             .background(Theme.card)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            Button {
-                runSearch()
-            } label: {
+            Button { runSearch() } label: {
                 Text("搜索").bold().frame(maxWidth: .infinity).padding(.vertical, 12)
             }
             .background(Theme.accent)
             .foregroundColor(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .buttonStyle(.plain)
 
             Spacer()
         }
