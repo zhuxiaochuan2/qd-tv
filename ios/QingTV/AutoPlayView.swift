@@ -23,6 +23,8 @@ struct AutoPlayView: View {
     @State private var showPicker = false
     @State private var failCount = 0
 
+    @Environment(\.presentationMode) private var pm
+
     private var curLine: PlayLine? {
         guard !lines.isEmpty, li < lines.count else { return nil }
         return lines[li]
@@ -51,11 +53,21 @@ struct AutoPlayView: View {
                          },
                          onFail: { skipToNext() },
                          onSource: { skipToNext() },
-                         onEpisodes: { showPicker = true })
+                         onEpisodes: { showPicker = true },
+                         onClose: { pm.wrappedValue.dismiss() })
                     .id("\(li)-\(ei)-\(r)")
                     .ignoresSafeArea()
             } else {
                 VStack(spacing: 12) {
+                    Button { pm.wrappedValue.dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
                     ProgressView().tint(.white)
                     Text(status).font(.caption).foregroundColor(.secondary)
                     if exhausted {
@@ -67,7 +79,6 @@ struct AutoPlayView: View {
             }
         }
         .navigationTitle("")
-        .navigationBarHidden(true)
         .sheet(isPresented: $showPicker) { picker }
         .task { if !started { await prepare() } }
     }
