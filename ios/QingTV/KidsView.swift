@@ -27,78 +27,75 @@ struct KidsView: View {
 
     private let hPad: CGFloat = 12
     private let gap: CGFloat = 10
-    private var cellW: CGFloat {
-        let sw = UIScreen.main.bounds.width
-        return floor((sw - hPad * 2 - gap * 2) / 3)
-    }
-    private var cellH: CGFloat { floor(cellW * 1.48) }
-    private var columns: [GridItem] {
-        [GridItem(.fixed(cellW), spacing: gap),
-         GridItem(.fixed(cellW), spacing: gap),
-         GridItem(.fixed(cellW), spacing: gap)]
-    }
 
     var body: some View {
         NavigationView {
-            ZStack {
-                BrandBackground(warm: true)
+            GeometryReader { geo in
+                let cw = max(80, floor((geo.size.width - hPad * 2 - gap * 2) / 3))
+                let ch = floor(cw * 1.48)
 
-                VStack(spacing: 0) {
-                    HStack(spacing: 8) {
-                        Text("🧸").font(.title2)
-                        Text("小朋友，今天看点什么？")
-                            .font(.subheadline).bold()
-                            .foregroundColor(Theme.text)
-                            .lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 16).padding(.top, 4)
+                ZStack {
+                    BrandBackground(warm: true)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    VStack(spacing: 0) {
                         HStack(spacing: 8) {
-                            ForEach(0..<tabs.count, id: \.self) { i in
-                                Button {
-                                    tab = i; start = 0; load()
-                                } label: {
-                                    Pill(text: tabs[i].2, selected: i == tab, color: Theme.warm)
+                            Text("🧸").font(.title2)
+                            Text("小朋友，今天看点什么？")
+                                .font(.subheadline).bold()
+                                .foregroundColor(Theme.text)
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 16).padding(.top, 4)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(0..<tabs.count, id: \.self) { i in
+                                    Button {
+                                        tab = i; start = 0; load()
+                                    } label: {
+                                        Pill(text: tabs[i].2, selected: i == tab, color: Theme.warm)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, hPad)
+                        }
+                        .frame(height: 46)
+
+                        HStack(spacing: 6) {
+                            Circle().fill(Theme.warm).frame(width: 5, height: 5)
+                            Text(msg).font(.caption2).foregroundColor(Theme.dim).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 16)
+
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: 0) {
+                                hotRow
+                                if loading && items.isEmpty {
+                                    skeleton(cw: cw, ch: ch)
+                                } else {
+                                    grid(cw: cw, ch: ch)
+                                }
+                                if !items.isEmpty { pager }
                             }
                         }
-                        .padding(.horizontal, hPad)
-                    }
-                    .frame(height: 46)
-
-                    HStack(spacing: 6) {
-                        Circle().fill(Theme.warm).frame(width: 5, height: 5)
-                        Text(msg).font(.caption2).foregroundColor(Theme.dim).lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 16)
-
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 0) {
-                            hotRow
-
-                            if loading && items.isEmpty { skeletonGrid } else { grid }
-
-                            if !items.isEmpty { pager }
-                        }
                     }
                 }
-            }
-            .navigationTitle("儿童模式")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                Button {
-                    pwd = ""; pwdErr = ""; showPwd = true
-                } label: {
-                    Image(systemName: "lock.fill").font(.body.weight(.semibold))
+                .navigationTitle("儿童模式")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    Button {
+                        pwd = ""; pwdErr = ""; showPwd = true
+                    } label: {
+                        Image(systemName: "lock.fill").font(.body.weight(.semibold))
+                    }
                 }
+                .sheet(isPresented: $showPwd) { pwdSheet }
+                .task { if items.isEmpty { load() } }
+                .tint(Theme.warm)
             }
-            .sheet(isPresented: $showPwd) { pwdSheet }
-            .task { if items.isEmpty { load() } }
-            .tint(Theme.warm)
         }
         .navigationViewStyle(.stack)
     }
@@ -130,13 +127,19 @@ struct KidsView: View {
         .padding(.top, 6)
     }
 
-    private var grid: some View {
-        LazyVGrid(columns: columns, spacing: 14) {
+    private func columns(_ cw: CGFloat) -> [GridItem] {
+        [GridItem(.fixed(cw), spacing: gap),
+         GridItem(.fixed(cw), spacing: gap),
+         GridItem(.fixed(cw), spacing: gap)]
+    }
+
+    private func grid(cw: CGFloat, ch: CGFloat) -> some View {
+        LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
                 NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
                     VStack(alignment: .leading, spacing: 6) {
                         NetImage(url: it.pic)
-                            .frame(width: cellW, height: cellH)
+                            .frame(width: cw, height: ch)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12)
                                 .stroke(Theme.warm.opacity(0.35), lineWidth: 1))
@@ -146,9 +149,9 @@ struct KidsView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .minimumScaleFactor(0.85)
-                            .frame(width: cellW, alignment: .leading)
+                            .frame(width: cw, alignment: .leading)
                     }
-                    .frame(width: cellW)
+                    .frame(width: cw)
                 }
                 .buttonStyle(.plain)
             }
@@ -157,12 +160,12 @@ struct KidsView: View {
         .padding(.top, 10)
     }
 
-    private var skeletonGrid: some View {
-        LazyVGrid(columns: columns, spacing: 14) {
+    private func skeleton(cw: CGFloat, ch: CGFloat) -> some View {
+        LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(0..<6, id: \.self) { _ in
                 VStack(spacing: 6) {
-                    Skeleton(height: cellH).frame(width: cellW)
-                    Skeleton(height: 10).frame(width: cellW)
+                    Skeleton(height: ch).frame(width: cw)
+                    Skeleton(height: 10).frame(width: cw)
                 }
             }
         }
