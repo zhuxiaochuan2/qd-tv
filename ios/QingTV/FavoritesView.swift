@@ -26,7 +26,7 @@ struct FavoritesView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         LazyVGrid(columns: cols, spacing: 14) {
                             ForEach(store.favorites) { f in
-                                NavigationLink(destination: DetailView(title: f.title, pic: f.pic, rate: f.rate)) {
+                                NavigationLink(destination: AutoPlayView(title: f.title, pic: f.pic, rate: f.rate)) {
                                     VStack(alignment: .leading, spacing: 6) {
                                         NetImage(url: f.pic)
                                             .frame(width: cw, height: ch)
