@@ -65,46 +65,15 @@ struct IQPlayer: View {
                 PlayerLayerView(player: p).ignoresSafeArea()
             }
 
-            // 左右点按区域（快退/快进），中间点按显隐控件、双击切全屏
-            HStack(spacing: 0) {
-                Color.clear.contentShape(Rectangle())
-                    .frame(maxWidth: .infinity)
-                    .onTapGesture(count: 2) { toggleFullscreen() }
-                    .onTapGesture { seek(by: -15) }
-                Color.clear.contentShape(Rectangle())
-                    .frame(maxWidth: .infinity)
-                    .onTapGesture(count: 2) { toggleFullscreen() }
-                    .onTapGesture { toggleControls() }
-                Color.clear.contentShape(Rectangle())
-                    .frame(maxWidth: .infinity)
-                    .onTapGesture(count: 2) { toggleFullscreen() }
-                    .onTapGesture { seek(by: 15) }
-            }
-            .ignoresSafeArea()
+            // 整块画面：单击显隐控件，双击切全屏（不再有左右 ±15 秒）
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { toggleFullscreen() }
+                .onTapGesture { toggleControls() }
+                .ignoresSafeArea()
 
             if showCtrl {
                 controls.transition(.opacity)
-            } else {
-                // 控件隐藏时也留一个返回键，防止卡在播放页出不去
-                VStack {
-                    HStack {
-                        Button {
-                            if let c = onClose { c() } else { pm.wrappedValue.dismiss() }
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 38, height: 38)
-                                .background(Color.black.opacity(0.45))
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 14)
-                        .padding(.top, 10)
-                        Spacer()
-                    }
-                    Spacer()
-                }
             }
 
             if let t = toast {
@@ -138,14 +107,6 @@ struct IQPlayer: View {
         VStack(spacing: 0) {
             // 顶栏
             HStack(spacing: 12) {
-                Button {
-                    if let c = onClose { c() } else { pm.wrappedValue.dismiss() }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                }
                 Text(title)
                     .font(.subheadline.bold())
                     .foregroundColor(.white)
@@ -160,6 +121,17 @@ struct IQPlayer: View {
                             .clipShape(Capsule())
                     }
                 }
+                Button {
+                    if let c = onClose { c() } else { pm.wrappedValue.dismiss() }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Color.black.opacity(0.35))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 8)
             .padding(.top, 6)
