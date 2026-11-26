@@ -1,7 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-/// 点开电影直接播：自动挑源、自动换源、自动选集
+/// 点开电影直接播：自动挑源、自动换源、自动选集（界面用爱奇艺风格播放器）
 struct AutoPlayView: View {
     @EnvironmentObject var store: Store
 
@@ -21,8 +21,6 @@ struct AutoPlayView: View {
     @State private var started = false
     @State private var exhausted = false
     @State private var showPicker = false
-    @State private var rateValue: Float = 1.0
-    @State private var seekRequest: Double = 0
     @State private var failCount = 0
 
     private var curLine: PlayLine? {
@@ -35,121 +33,43 @@ struct AutoPlayView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             if let r = real, let u = URL(string: r) {
-                VideoPlayer(url: u,
-                            headers: headers,
-                            resumeAt: resumePosition(),
-                            rate: rateValue,
-                            seekTo: seekRequest,
-                            onNoAudio: nil,
-                            onReady: { status = "" },
-                            onFail: { skipToNext() },
-                            onProgress: { pos, dur in
-                                guard let ep = curEp, let l = curLine else { return }
-                                store.recordProgress(title: title, pic: poster.isEmpty ? pic : poster,
-                                                     site: l.site, line: l.name,
-                                                     epName: ep.name, epURL: ep.url,
-                                                     position: pos, duration: dur)
-                            })
-                    .id("\(li)-\(ei)-\(r)")     // 换源/换集必须重建播放器
+                IQPlayer(url: u,
+                         headers: headers,
+                         title: title,
+                         resumeAt: resumePosition(),
+                         onProgress: { pos, dur in
+                             guard let ep = curEp, let l = curLine else { return }
+                             store.recordProgress(title: title,
+                                                  pic: poster.isEmpty ? pic : poster,
+                                                  site: l.site, line: l.name,
+                                                  epName: ep.name, epURL: ep.url,
+                                                  position: pos, duration: dur)
+                         },
+                         onFail: { skipToNext() },
+                         onSource: { skipToNext() },
+                         onEpisodes: { showPicker = true })
+                    .id("\(li)-\(ei)-\(r)")
                     .ignoresSafeArea()
             } else {
                 VStack(spacing: 12) {
                     ProgressView().tint(.white)
                     Text(status).font(.caption).foregroundColor(.secondary)
-                    if exhausted { Text("所有线路都播不了，回上一页换一部").font(.caption2).foregroundColor(.orange) }
+                    if exhausted {
+                        Text("所有线路都播不了，回上一页换一部")
+                            .font(.caption2).foregroundColor(.orange)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            if real != nil { tools }
         }
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("")
+        .navigationBarHidden(true)
         .sheet(isPresented: $showPicker) { picker }
         .task { if !started { await prepare() } }
-    }
-
-    // MARK: - 工具栏
-
-    private var tools: some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            if let l = curLine, let e = curEp {
-                Text("\(li + 1)/\(lines.count) 条 · \(l.site) \(l.name) · \(e.name)")
-                    .font(.system(size: 10))
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Color.black.opacity(0.55))
-                    .foregroundColor(.white)
-                    .clipShape(Capsule())
-            }
-            HStack(spacing: 8) {
-                Button { skipToNext() } label: {
-                    Text("换源").font(.caption.bold())
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color.black.opacity(0.55))
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-
-                Button { showPicker = true } label: {
-                    Text("选集").font(.caption.bold())
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color.black.opacity(0.55))
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-
-                Button { seekRequest += 60 } label: {
-                    Text("+60s").font(.caption.bold())
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color.black.opacity(0.55))
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-
-                Menu {
-                    ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { r in
-                        Button("\(r, specifier: "%g")x") { rateValue = Float(r) }
-                    }
-                } label: {
-                    Text(rateValue == 1.0 ? "1x" : String(format: "%gx", rateValue))
-                        .font(.caption.bold())
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color.black.opacity(0.55))
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
-                }
-
-                Button {
-                    if Orientation.isLandscapeNow {
-                        Orientation.portrait()
-                    } else {
-                        Orientation.landscape()
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: Orientation.isLandscapeNow
-                              ? "rectangle.portrait.arrowtriangle.2.inward"
-                              : "rectangle.landscape.rotate")
-                        Text(Orientation.isLandscapeNow ? "竖屏" : "横屏")
-                    }
-                    .font(.caption.bold())
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(Color.black.opacity(0.6))
-                    .foregroundColor(.white)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.top, 8)
-        .padding(.trailing, 12)
     }
 
     // MARK: - 选集面板
@@ -222,9 +142,7 @@ struct AutoPlayView: View {
             }
             .navigationTitle("选集 / 换源")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                Button("关闭") { showPicker = false }
-            }
+            .toolbar { Button("关闭") { showPicker = false } }
         }
     }
 
@@ -253,11 +171,7 @@ struct AutoPlayView: View {
                     lines = snapLines
                     if poster.isEmpty, let p = snapHits.first(where: { !$0.pic.isEmpty })?.pic { poster = p }
                     if desc.isEmpty, let d = snapHits.first(where: { !$0.content.isEmpty })?.content { desc = d }
-                    if real == nil && !snapLines.isEmpty && real == nil {
-                        playCurrent()
-                    } else if snapLines.isEmpty {
-                        status = "正在找片源…"
-                    }
+                    if real == nil && !snapLines.isEmpty { playCurrent() }
                 }
             }
         }
@@ -289,14 +203,12 @@ struct AutoPlayView: View {
                     real = m
                     status = ""
                 } else {
-                    // 解析不出来也算这条线路失败
                     skipToNext()
                 }
             }
         }
     }
 
-    /// 当前线路播不了 → 自动换下一条（第一条不行换第二条，以此类推）
     private func skipToNext() {
         guard !lines.isEmpty else {
             status = "没搜到能播的片源"
