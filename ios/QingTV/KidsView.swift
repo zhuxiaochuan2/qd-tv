@@ -25,19 +25,32 @@ struct KidsView: View {
         "米奇妙妙屋", "小马宝莉", "巴巴爸爸", "小羊肖恩",
     ]
 
+    private let hPad: CGFloat = 12
+    private let gap: CGFloat = 10
+    private var cellW: CGFloat {
+        let sw = UIScreen.main.bounds.width
+        return floor((sw - hPad * 2 - gap * 2) / 3)
+    }
+    private var cellH: CGFloat { floor(cellW * 1.48) }
+    private var columns: [GridItem] {
+        [GridItem(.fixed(cellW), spacing: gap),
+         GridItem(.fixed(cellW), spacing: gap),
+         GridItem(.fixed(cellW), spacing: gap)]
+    }
+
     var body: some View {
         NavigationView {
             ZStack {
                 BrandBackground(warm: true)
 
                 VStack(spacing: 0) {
-                    // 顶部问候
                     HStack(spacing: 8) {
                         Text("🧸").font(.title2)
                         Text("小朋友，今天看点什么？")
                             .font(.subheadline).bold()
                             .foregroundColor(Theme.text)
-                        Spacer()
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16).padding(.top, 4)
 
@@ -52,94 +65,28 @@ struct KidsView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, 14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, hPad)
                     }
                     .frame(height: 46)
 
                     HStack(spacing: 6) {
                         Circle().fill(Theme.warm).frame(width: 5, height: 5)
-                        Text(msg).font(.caption2).foregroundColor(Theme.dim)
-                        Spacer()
+                        Text(msg).font(.caption2).foregroundColor(Theme.dim).lineLimit(1)
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
 
-                    ScrollView {
-                        // 快捷片单
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("小朋友最爱")
-                                .font(.footnote).bold()
-                                .foregroundColor(Theme.warm)
-                                .padding(.horizontal, 16)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(hot, id: \.self) { t in
-                                        NavigationLink(destination: DetailView(title: t, pic: "", rate: "")) {
-                                            Text(t)
-                                                .font(.footnote).bold()
-                                                .padding(.horizontal, 14).padding(.vertical, 10)
-                                                .background(Theme.warm.opacity(0.22))
-                                                .foregroundColor(Theme.text)
-                                                .clipShape(Capsule())
-                                                .overlay(Capsule().stroke(Theme.warm.opacity(0.5), lineWidth: 1))
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                        }
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            hotRow
 
-                        if loading && items.isEmpty {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 14) {
-                                ForEach(0..<6, id: \.self) { _ in
-                                    VStack(spacing: 6) {
-                                        Skeleton(height: 168)
-                                        Skeleton(height: 10)
-                                    }
-                                }
-                            }
-                            .padding(14)
-                        } else {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 14) {
-                                ForEach(items) { it in
-                                    NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            NetImage(url: it.pic)
-                                                .frame(height: 168)
-                                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                                .overlay(RoundedRectangle(cornerRadius: 12)
-                                                    .stroke(Theme.warm.opacity(0.35), lineWidth: 1))
-                                            Text(it.name)
-                                                .font(.caption)
-                                                .foregroundColor(Theme.text)
-                                                .lineLimit(1)
-                                                .truncationMode(.tail)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                        }
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .padding(14)
+                            if loading && items.isEmpty { skeletonGrid } else { grid }
 
-                            HStack(spacing: 16) {
-                                Button { start = max(0, start - 20); load() } label: {
-                                    Label("上一页", systemImage: "chevron.left").font(.footnote)
-                                }
-                                .disabled(start == 0)
-                                .opacity(start == 0 ? 0.35 : 1)
-
-                                Button { start += 20; load() } label: {
-                                    Label("下一页", systemImage: "chevron.right").font(.footnote)
-                                }
-                            }
-                            .padding(.bottom, 24)
+                            if !items.isEmpty { pager }
                         }
                     }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle("儿童模式")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -153,6 +100,92 @@ struct KidsView: View {
             .task { if items.isEmpty { load() } }
             .tint(Theme.warm)
         }
+        .navigationViewStyle(.stack)
+    }
+
+    private var hotRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("小朋友最爱")
+                .font(.footnote).bold()
+                .foregroundColor(Theme.warm)
+                .padding(.horizontal, 16)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(hot, id: \.self) { t in
+                        NavigationLink(destination: DetailView(title: t, pic: "", rate: "")) {
+                            Text(t)
+                                .font(.footnote).bold()
+                                .padding(.horizontal, 14).padding(.vertical, 10)
+                                .background(Theme.warm.opacity(0.22))
+                                .foregroundColor(Theme.text)
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(Theme.warm.opacity(0.5), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+        .padding(.top, 6)
+    }
+
+    private var grid: some View {
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(items) { it in
+                NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        NetImage(url: it.pic)
+                            .frame(width: cellW, height: cellH)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12)
+                                .stroke(Theme.warm.opacity(0.35), lineWidth: 1))
+                        Text(it.name)
+                            .font(.caption)
+                            .foregroundColor(Theme.text)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .minimumScaleFactor(0.85)
+                            .frame(width: cellW, alignment: .leading)
+                    }
+                    .frame(width: cellW)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, hPad)
+        .padding(.top, 10)
+    }
+
+    private var skeletonGrid: some View {
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(0..<6, id: \.self) { _ in
+                VStack(spacing: 6) {
+                    Skeleton(height: cellH).frame(width: cellW)
+                    Skeleton(height: 10).frame(width: cellW)
+                }
+            }
+        }
+        .padding(.horizontal, hPad).padding(.top, 10)
+    }
+
+    private var pager: some View {
+        HStack(spacing: 16) {
+            Button { start = max(0, start - 20); load() } label: {
+                Label("上一页", systemImage: "chevron.left").font(.footnote)
+            }
+            .buttonStyle(.plain)
+            .disabled(start == 0)
+            .opacity(start == 0 ? 0.35 : 1)
+
+            Text("第 \(start / 20 + 1) 页").font(.caption2).foregroundColor(Theme.dim)
+
+            Button { start += 20; load() } label: {
+                Label("下一页", systemImage: "chevron.right").font(.footnote)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 22)
     }
 
     private var pwdSheet: some View {
@@ -176,17 +209,15 @@ struct KidsView: View {
                     .frame(maxWidth: .infinity).padding(.vertical, 11)
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .buttonStyle(.plain)
                 Button("确定") {
-                    if store.exitKidsMode(pwd: pwd) {
-                        showPwd = false
-                    } else {
-                        pwdErr = "密码不对"
-                    }
+                    if store.exitKidsMode(pwd: pwd) { showPwd = false } else { pwdErr = "密码不对" }
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 11)
                 .background(Theme.warm)
                 .foregroundColor(.black)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
+                .buttonStyle(.plain)
             }
             Spacer()
         }
