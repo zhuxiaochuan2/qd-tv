@@ -109,7 +109,7 @@ struct KidsView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(hot, id: \.self) { t in
-                        NavigationLink(destination: DetailView(title: t, pic: "", rate: "")) {
+                        NavigationLink(destination: AutoPlayView(title: t)) {
                             Text(t)
                                 .font(.footnote.bold())
                                 .padding(.horizontal, 14).padding(.vertical, 10)
@@ -136,7 +136,7 @@ struct KidsView: View {
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
-                NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
+                NavigationLink(destination: AutoPlayView(title: it.name, pic: it.pic, rate: it.rate)) {
                     VStack(alignment: .leading, spacing: 6) {
                         NetImage(url: it.pic)
                             .frame(width: cw, height: ch)
