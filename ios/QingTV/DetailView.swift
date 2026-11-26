@@ -21,6 +21,7 @@ struct DetailView: View {
     }
 
     private var history: HistoryItem? { store.historyItem(for: title) }
+    @State private var play: PlayVideo?
 
     var body: some View {
         ZStack {
@@ -58,6 +59,11 @@ struct DetailView: View {
                 Image(systemName: store.isFav(title) ? "heart.fill" : "heart")
                     .foregroundColor(store.isFav(title) ? Theme.warm : Theme.text)
             }
+        }
+        .fullScreenCover(item: $play) { v in
+            PlayerView(urlString: v.urlString, title: v.title, pic: v.pic,
+                       site: v.site, line: v.line, epName: v.epName, resumeAt: v.resumeAt)
+                .environmentObject(store)
         }
         .onAppear {
             if poster.isEmpty { poster = pic }
@@ -124,9 +130,10 @@ struct DetailView: View {
     }
 
     private func resumeBanner(_ h: HistoryItem) -> some View {
-        NavigationLink(destination: PlayerView(urlString: h.epURL, title: title, pic: poster,
-                                               site: h.site, line: h.line,
-                                               epName: h.epName, resumeAt: h.position)) {
+        Button {
+            play = PlayVideo(urlString: h.epURL, title: title, pic: poster,
+                             site: h.site, line: h.line, epName: h.epName, resumeAt: h.position)
+        } label: {
             HStack(spacing: 10) {
                 Image(systemName: "play.circle.fill").font(.title3).foregroundColor(Theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
@@ -178,7 +185,7 @@ struct DetailView: View {
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                 ForEach(eps) { e in
-                    NavigationLink(destination: player(for: e)) {
+                    Button { play = player(for: e) } label: {
                         epCell(e)
                     }
                     .buttonStyle(.plain)
@@ -203,12 +210,12 @@ struct DetailView: View {
                 .stroke(watched ? Theme.accent.opacity(0.6) : Color.white.opacity(0.06), lineWidth: 1))
     }
 
-    private func player(for e: Ep) -> PlayerView {
+    private func player(for e: Ep) -> PlayVideo {
         let resume = (history?.epURL == e.url) ? (history?.position ?? 0) : 0
         let siteName = lines.isEmpty ? "" : lines[min(max(sel, 0), lines.count - 1)].site
         let lineName = lines.isEmpty ? "" : lines[min(max(sel, 0), lines.count - 1)].name
-        return PlayerView(urlString: e.url, title: title, pic: poster,
-                          site: siteName, line: lineName, epName: e.name, resumeAt: resume)
+        return PlayVideo(urlString: e.url, title: title, pic: poster,
+                         site: siteName, line: lineName, epName: e.name, resumeAt: resume)
     }
 
     // MARK: - 搜源
