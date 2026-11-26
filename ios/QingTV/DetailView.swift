@@ -77,7 +77,7 @@ struct DetailView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(title)
-                    .font(.title3).bold()
+                    .font(.title3.bold())
                     .foregroundColor(Theme.text)
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
@@ -87,7 +87,7 @@ struct DetailView: View {
                     if !rate.isEmpty {
                         HStack(spacing: 4) {
                             Image(systemName: "star.fill").font(.caption2)
-                            Text(rate).font(.footnote).bold()
+                            Text(rate).font(.footnote.bold())
                         }
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(Theme.warm)
@@ -130,7 +130,7 @@ struct DetailView: View {
             HStack(spacing: 10) {
                 Image(systemName: "play.circle.fill").font(.title3).foregroundColor(Theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("继续观看 \(h.epName)").font(.footnote).bold().foregroundColor(Theme.text)
+                    Text("继续观看 \(h.epName)").font(.footnote.bold()).foregroundColor(Theme.text)
                     Text("从 \(timeText(h.position)) 开始 · \(h.site)").font(.caption2).foregroundColor(Theme.dim)
                 }
                 Spacer()
@@ -152,7 +152,7 @@ struct DetailView: View {
                     Button { sel = i } label: {
                         VStack(spacing: 2) {
                             Text(l.site).font(.caption2).opacity(0.7)
-                            Text("\(l.name) · \(l.eps.count)集").font(.footnote).bold()
+                            Text("\(l.name) · \(l.eps.count)集").font(.footnote.bold())
                         }
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .background(i == sel ? Theme.accent : Theme.card)
@@ -172,7 +172,7 @@ struct DetailView: View {
     private var epsGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("选集（\(eps.count)）")
-                .font(.footnote).bold()
+                .font(.footnote.bold())
                 .foregroundColor(Theme.dim)
                 .padding(.horizontal, 16)
 
