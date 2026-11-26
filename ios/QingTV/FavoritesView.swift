@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FavoritesView: View {
     @EnvironmentObject var store: Store
+    @State private var playTarget: PlayTarget?
 
     private let hPad: CGFloat = 12
     private let gap: CGFloat = 10
@@ -26,7 +27,7 @@ struct FavoritesView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         LazyVGrid(columns: cols, spacing: 14) {
                             ForEach(store.favorites) { f in
-                                NavigationLink(destination: AutoPlayView(title: f.title, pic: f.pic, rate: f.rate)) {
+                                Button { playTarget = PlayTarget(title: f.title, pic: f.pic, rate: f.rate) } label: {
                                     VStack(alignment: .leading, spacing: 6) {
                                         NetImage(url: f.pic)
                                             .frame(width: cw, height: ch)
@@ -54,6 +55,10 @@ struct FavoritesView: View {
                     }
                 }
             }
+        }
+        .fullScreenCover(item: $playTarget) { t in
+            AutoPlayView(title: t.title, pic: t.pic, rate: t.rate)
+                .environmentObject(store)
         }
         .navigationTitle("我的收藏")
         .navigationBarTitleDisplayMode(.inline)
