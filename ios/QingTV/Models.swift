@@ -265,3 +265,12 @@ final class Store: ObservableObject {
         saveHistory()
     }
 }
+
+
+/// 点海报要全屏播的目标
+struct PlayTarget: Identifiable {
+    let id = UUID()
+    let title: String
+    let pic: String
+    let rate: String
+}
