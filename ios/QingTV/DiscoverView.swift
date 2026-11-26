@@ -94,7 +94,7 @@ struct DiscoverView: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "clock.arrow.circlepath").font(.caption2).foregroundColor(Theme.accent)
-                Text("继续观看").font(.footnote).bold().foregroundColor(Theme.dim)
+                Text("继续观看").font(.footnote.bold()).foregroundColor(Theme.dim)
                 Spacer()
                 Button("清空") { store.clearHistory() }
                     .font(.caption2).foregroundColor(Theme.dim)
@@ -176,7 +176,7 @@ struct DiscoverView: View {
 
                 if !it.rate.isEmpty && it.rate != "0" {
                     Text(it.rate)
-                        .font(.caption2).bold()
+                        .font(.caption2.bold())
                         .padding(.horizontal, 5).padding(.vertical, 2)
                         .background(Theme.warm)
                         .foregroundColor(.black)
