@@ -58,7 +58,7 @@ struct PlayerView: View {
                     } label: {
                         Image(systemName: landscape ? "rectangle.portrait.arrowtriangle.2.inward"
                                                     : "rectangle.landscape.rotate")
-                            .font(.caption).bold()
+                            .font(.caption.bold())
                             .padding(.horizontal, 9).padding(.vertical, 6)
                             .background(Color.black.opacity(0.55))
                             .foregroundColor(.white)
@@ -70,7 +70,7 @@ struct PlayerView: View {
                         seekRequest += 60
                     } label: {
                         Text("+60s")
-                            .font(.caption).bold()
+                            .font(.caption.bold())
                             .padding(.horizontal, 10).padding(.vertical, 6)
                             .background(Color.black.opacity(0.55))
                             .foregroundColor(.white)
@@ -84,7 +84,7 @@ struct PlayerView: View {
                         }
                     } label: {
                         Text(rate == 1.0 ? "1x" : String(format: "%gx", rate))
-                            .font(.caption).bold()
+                            .font(.caption.bold())
                             .padding(.horizontal, 10).padding(.vertical, 6)
                             .background(Color.black.opacity(0.55))
                             .foregroundColor(.white)
