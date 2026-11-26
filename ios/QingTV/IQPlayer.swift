@@ -37,8 +37,9 @@ struct IQPlayer: View {
     var onFail: (() -> Void)? = nil
     var onSource: (() -> Void)? = nil
     var onEpisodes: (() -> Void)? = nil
+    var onClose: (() -> Void)? = nil
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var pm
 
     @State private var player: AVPlayer?
     @State private var timeObs: Any?
@@ -98,10 +99,14 @@ struct IQPlayer: View {
             }
         }
         .statusBarHidden(showCtrl ? false : true)
-        .navigationBarBackButtonHidden(true)
-        .navigationBarHidden(true)
-        .onAppear { start() }
-        .onDisappear { stop() }
+        .onAppear {
+            Orientation.unlock()          // 允许四方向，转设备就能全屏
+            start()
+        }
+        .onDisappear {
+            Orientation.portrait()        // 退出回竖屏
+            stop()
+        }
     }
 
     // MARK: - 控件层
@@ -110,7 +115,9 @@ struct IQPlayer: View {
         VStack(spacing: 0) {
             // 顶栏
             HStack(spacing: 12) {
-                Button { dismiss() } label: {
+                Button {
+                    if let c = onClose { c() } else { pm.wrappedValue.dismiss() }
+                } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
