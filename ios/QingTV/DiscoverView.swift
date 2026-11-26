@@ -21,13 +21,26 @@ struct DiscoverView: View {
         ("tv", "日本动画", "动画番剧"),
     ]
 
+    /// 固定格子宽度：不依赖 flexible 列，彻底避免被父容器撑宽导致左右裁切
+    private let hPad: CGFloat = 12
+    private let gap: CGFloat = 10
+    private var cellW: CGFloat {
+        let sw = UIScreen.main.bounds.width
+        return floor((sw - hPad * 2 - gap * 2) / 3)
+    }
+    private var cellH: CGFloat { floor(cellW * 1.48) }
+    private var columns: [GridItem] {
+        [GridItem(.fixed(cellW), spacing: gap),
+         GridItem(.fixed(cellW), spacing: gap),
+         GridItem(.fixed(cellW), spacing: gap)]
+    }
+
     var body: some View {
         NavigationView {
             ZStack {
                 BrandBackground()
 
                 VStack(spacing: 0) {
-                    // 分类药丸：给固定高度，避免横向 ScrollView 把父容器撑宽（就是之前海报被裁的原因）
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(0..<tabs.count, id: \.self) { i in
@@ -39,38 +52,26 @@ struct DiscoverView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, 14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, hPad)
                     }
                     .frame(height: 46)
 
                     HStack(spacing: 6) {
                         Circle().fill(Theme.accent).frame(width: 5, height: 5)
-                        Text(msg).font(.caption2).foregroundColor(Theme.dim)
-                            .lineLimit(1)
+                        Text(msg).font(.caption2).foregroundColor(Theme.dim).lineLimit(1)
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 2)
 
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: 0) {
-                            if loading && items.isEmpty {
-                                skeletonGrid
-                            } else {
-                                grid
-                            }
-                            if !isSearchResult && !items.isEmpty {
-                                pager
-                            }
+                            if loading && items.isEmpty { skeletonGrid } else { grid }
+                            if !isSearchResult && !items.isEmpty { pager }
                         }
-                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationTitle("轻电视")
+            .navigationTitle("影匣")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 Button { showSearch = true } label: {
@@ -84,12 +85,6 @@ struct DiscoverView: View {
         .navigationViewStyle(.stack)
     }
 
-    // MARK: - 网格
-
-    private var columns: [GridItem] {
-        [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-    }
-
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(items) { it in
@@ -99,7 +94,7 @@ struct DiscoverView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, hPad)
         .padding(.top, 10)
     }
 
@@ -107,8 +102,7 @@ struct DiscoverView: View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topTrailing) {
                 NetImage(url: it.pic)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 168)
+                    .frame(width: cellW, height: cellH)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10)
                         .stroke(Color.white.opacity(0.07), lineWidth: 1))
@@ -116,11 +110,11 @@ struct DiscoverView: View {
                 if !it.rate.isEmpty && it.rate != "0" {
                     Text(it.rate)
                         .font(.caption2).bold()
-                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .padding(.horizontal, 5).padding(.vertical, 2)
                         .background(Theme.warm)
                         .foregroundColor(.black)
                         .clipShape(Capsule())
-                        .padding(6)
+                        .padding(5)
                 }
             }
             Text(it.name)
@@ -128,20 +122,22 @@ struct DiscoverView: View {
                 .foregroundColor(Theme.text)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .minimumScaleFactor(0.85)
+                .frame(width: cellW, alignment: .leading)
         }
+        .frame(width: cellW)
     }
 
     private var skeletonGrid: some View {
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(0..<9, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 6) {
-                    Skeleton(height: 168)
-                    Skeleton(height: 10)
+                    Skeleton(height: cellH).frame(width: cellW)
+                    Skeleton(height: 10).frame(width: cellW)
                 }
             }
         }
-        .padding(.horizontal, 12).padding(.top, 10)
+        .padding(.horizontal, hPad).padding(.top, 10)
     }
 
     private var pager: some View {
@@ -160,7 +156,6 @@ struct DiscoverView: View {
             }
             .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
     }
 
