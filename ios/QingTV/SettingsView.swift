@@ -40,6 +40,28 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(header: Text("我的内容")) {
+                    NavigationLink(destination: FavoritesView()) {
+                        HStack {
+                            Image(systemName: "heart.fill").foregroundColor(Theme.warm)
+                            Text("我的收藏")
+                            Spacer()
+                            Text("\(store.favorites.count)").foregroundColor(Theme.dim)
+                        }
+                    }
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath").foregroundColor(Theme.accent)
+                        Text("观看记录")
+                        Spacer()
+                        Text("\(store.history.count)").foregroundColor(Theme.dim)
+                    }
+                    Button("清空观看记录") {
+                        store.clearHistory()
+                        msg = "已清空观看记录"
+                    }
+                    .foregroundColor(.orange)
+                }
+
                 Section(header: Text("TVBox 订阅（多仓 / 单仓）")) {
                     TextField("订阅地址", text: $sub)
                         .textInputAutocapitalization(.never)
@@ -90,7 +112,7 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("关于")) {
-                    Text("影匣 1.3.0 · 纯客户端壳，不含任何内容").font(.caption)
+                    Text("影匣 1.4.0 · 纯客户端壳，不含任何内容").font(.caption)
                     Text("发现用豆瓣，播放靠 cms 搜索匹配。无广告、无登录、无推送。").font(.caption2).foregroundColor(.secondary)
                 }
             }
