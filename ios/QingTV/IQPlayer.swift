@@ -52,7 +52,6 @@ struct IQPlayer: View {
     @State private var dragValue: Double = 0
     @State private var rate: Float = 1.0
     @State private var hideTask: Task<Void, Never>?
-    @State private var landscape = false
     @State private var toast: String?
 
     private var shownPos: Double { dragging ? dragValue : position }
@@ -66,22 +65,46 @@ struct IQPlayer: View {
                 PlayerLayerView(player: p).ignoresSafeArea()
             }
 
-            // 左右点按区域（快退/快进），中间点按显隐控件
+            // 左右点按区域（快退/快进），中间点按显隐控件、双击切全屏
             HStack(spacing: 0) {
                 Color.clear.contentShape(Rectangle())
                     .frame(maxWidth: .infinity)
+                    .onTapGesture(count: 2) { toggleFullscreen() }
                     .onTapGesture { seek(by: -15) }
                 Color.clear.contentShape(Rectangle())
                     .frame(maxWidth: .infinity)
+                    .onTapGesture(count: 2) { toggleFullscreen() }
                     .onTapGesture { toggleControls() }
                 Color.clear.contentShape(Rectangle())
                     .frame(maxWidth: .infinity)
+                    .onTapGesture(count: 2) { toggleFullscreen() }
                     .onTapGesture { seek(by: 15) }
             }
             .ignoresSafeArea()
 
             if showCtrl {
                 controls.transition(.opacity)
+            } else {
+                // 控件隐藏时也留一个返回键，防止卡在播放页出不去
+                VStack {
+                    HStack {
+                        Button {
+                            if let c = onClose { c() } else { pm.wrappedValue.dismiss() }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 38, height: 38)
+                                .background(Color.black.opacity(0.45))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 14)
+                        .padding(.top, 10)
+                        Spacer()
+                    }
+                    Spacer()
+                }
             }
 
             if let t = toast {
@@ -211,12 +234,10 @@ struct IQPlayer: View {
                         }
                     }
 
-                    Button {
-                        landscape.toggle()
-                        if landscape { Orientation.landscape() } else { Orientation.portrait() }
-                    } label: {
-                        Image(systemName: landscape ? "arrow.down.right.and.arrow.up.left"
-                                                    : "arrow.up.left.and.arrow.down.right")
+                    Button { toggleFullscreen() } label: {
+                        Image(systemName: Orientation.isLandscapeNow
+                              ? "arrow.down.right.and.arrow.up.left"
+                              : "arrow.up.left.and.arrow.down.right")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.white)
                     }
@@ -327,6 +348,17 @@ struct IQPlayer: View {
         statusObs = nil
         player?.pause()
         player = nil
+    }
+
+    private func toggleFullscreen() {
+        if Orientation.isLandscapeNow {
+            Orientation.portrait()
+            flash("退出全屏")
+        } else {
+            Orientation.landscape()
+            flash("全屏")
+        }
+        scheduleHide()
     }
 
     private func togglePlay() {
