@@ -11,6 +11,7 @@ struct KidsView: View {
     @State private var showPwd = false
     @State private var pwd = ""
     @State private var pwdErr = ""
+    @State private var playTarget: PlayTarget?
 
     private let tabs: [(String, String, String)] = [
         ("movie", "动画", "动画电影"),
@@ -93,6 +94,10 @@ struct KidsView: View {
                     }
                 }
                 .sheet(isPresented: $showPwd) { pwdSheet }
+                .fullScreenCover(item: $playTarget) { t in
+                    AutoPlayView(title: t.title, pic: t.pic, rate: t.rate)
+                        .environmentObject(store)
+                }
                 .task { if items.isEmpty { load() } }
                 .tint(Theme.warm)
             }
@@ -109,7 +114,7 @@ struct KidsView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(hot, id: \.self) { t in
-                        NavigationLink(destination: AutoPlayView(title: t)) {
+                        Button { playTarget = PlayTarget(title: t, pic: "", rate: "") } label: {
                             Text(t)
                                 .font(.footnote.bold())
                                 .padding(.horizontal, 14).padding(.vertical, 10)
@@ -136,7 +141,7 @@ struct KidsView: View {
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
-                NavigationLink(destination: AutoPlayView(title: it.name, pic: it.pic, rate: it.rate)) {
+                Button { playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate) } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         NetImage(url: it.pic)
                             .frame(width: cw, height: ch)
