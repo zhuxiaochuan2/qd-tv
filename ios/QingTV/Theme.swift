@@ -38,7 +38,7 @@ struct Pill: View {
     var color: Color = Theme.accent
     var body: some View {
         Text(text)
-            .font(.footnote).bold()
+            .font(.footnote.bold())
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(selected ? color : Theme.card)
             .foregroundColor(selected ? .white : Theme.dim)
