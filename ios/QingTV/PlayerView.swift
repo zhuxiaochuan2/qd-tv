@@ -16,7 +16,6 @@ struct PlayerView: View {
             Color.black.ignoresSafeArea()
             if let r = real, let u = URL(string: r) {
                 VideoPlayer(url: u, headers: headers) {
-                    // 只有在「播放起来 3 秒后仍然一条音轨都没有」时才提示
                     hint = "这条线路可能真的没声音，试着换一条线路"
                 }
                 .ignoresSafeArea()
@@ -38,7 +37,7 @@ struct PlayerView: View {
                         .padding(.horizontal, 14).padding(.vertical, 8)
                         .background(Color.black.opacity(0.75))
                         .foregroundColor(.orange)
-                        .cornerRadius(10)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                         .padding(.bottom, 60)
                 }
             }
@@ -62,7 +61,8 @@ struct PlayerView: View {
     }
 }
 
-/// 带 Referer 的 AVPlayer：防盗链源也能播
+/// 带 Referer 的 AVPlayer。
+/// 返回上一页时要把 player 停掉、观察者释放，否则偶发闪退。
 struct VideoPlayer: UIViewControllerRepresentable {
     let url: URL
     let headers: [String: String]
@@ -86,37 +86,53 @@ struct VideoPlayer: UIViewControllerRepresentable {
         vc.player = player
         vc.showsPlaybackControls = true
         vc.entersFullScreenWhenPlaybackBegins = true
-        player.play()
 
+        context.coordinator.player = player
         context.coordinator.watch(item)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            if let p = vc.player, p.currentItem != nil { p.play() }
+        }
         return vc
     }
 
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {}
 
+    /// 关键：离场时彻底收摊，避免 AVPlayer 在后台被释放导致的崩溃
+    static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: Coordinator) {
+        uiViewController.player?.pause()
+        uiViewController.player?.replaceCurrentItem(with: nil)
+        uiViewController.player = nil
+        coordinator.stop()
+    }
+
     final class Coordinator {
         private let onNoAudio: (() -> Void)?
         private var obs: NSKeyValueObservation?
         private var checked = false
+        weak var player: AVPlayer?
 
         init(onNoAudio: (() -> Void)?) { self.onNoAudio = onNoAudio }
 
+        func stop() {
+            obs?.invalidate()
+            obs = nil
+            player?.pause()
+            player = nil
+        }
+
+        deinit { obs?.invalidate() }
+
         /// HLS 的音轨要等播放真正起来才出现，早查一定是空的
-        /// （之前那版就是查早了，导致每条线路都误报"没有音轨"）
         func watch(_ item: AVPlayerItem) {
             obs = item.observe(\.status, options: [.new]) { [weak self] it, _ in
                 guard let self = self, it.status == .readyToPlay else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                     guard !self.checked else { return }
                     self.checked = true
-                    let audioTracks = it.tracks.filter { t in
-                        t.assetTrack?.mediaType == .audio
-                    }
-                    // tracks 为空多半是还没解析完，别急着下结论
                     guard !it.tracks.isEmpty else { return }
-                    if audioTracks.isEmpty {
-                        self.onNoAudio?()
-                    }
+                    let audioTracks = it.tracks.filter { $0.assetTrack?.mediaType == .audio }
+                    if audioTracks.isEmpty { self.onNoAudio?() }
                 }
             }
         }
