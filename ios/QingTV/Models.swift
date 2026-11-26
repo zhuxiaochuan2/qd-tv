@@ -274,3 +274,16 @@ struct PlayTarget: Identifiable {
     let pic: String
     let rate: String
 }
+
+
+/// 单集全屏播放目标
+struct PlayVideo: Identifiable {
+    let id = UUID()
+    let urlString: String
+    let title: String
+    let pic: String
+    let site: String
+    let line: String
+    let epName: String
+    let resumeAt: Double
+}
