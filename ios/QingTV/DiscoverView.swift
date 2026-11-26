@@ -11,6 +11,7 @@ struct DiscoverView: View {
     @State private var query = ""
     @State private var isSearchResult = false
     @State private var playTarget: PlayTarget?
+    @State private var resumeTarget: PlayVideo?
 
     private let tabs: [(String, String, String)] = [
         ("movie", "热门", "热门电影"),
@@ -84,6 +85,11 @@ struct DiscoverView: View {
                     AutoPlayView(title: t.title, pic: t.pic, rate: t.rate)
                         .environmentObject(store)
                 }
+                .fullScreenCover(item: $resumeTarget) { v in
+                    PlayerView(urlString: v.urlString, title: v.title, pic: v.pic,
+                               site: v.site, line: v.line, epName: v.epName, resumeAt: v.resumeAt)
+                        .environmentObject(store)
+                }
                 .task { if items.isEmpty { load() } }
                 .tint(Theme.accent)
             }
@@ -110,9 +116,11 @@ struct DiscoverView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(store.history.prefix(10)) { hi in
-                        NavigationLink(destination: PlayerView(urlString: hi.epURL, title: hi.title,
-                                                               pic: hi.pic, site: hi.site, line: hi.line,
-                                                               epName: hi.epName, resumeAt: hi.position)) {
+                        Button {
+                            resumeTarget = PlayVideo(urlString: hi.epURL, title: hi.title,
+                                                     pic: hi.pic, site: hi.site, line: hi.line,
+                                                     epName: hi.epName, resumeAt: hi.position)
+                        } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 ZStack(alignment: .bottom) {
                                     NetImage(url: hi.pic)
