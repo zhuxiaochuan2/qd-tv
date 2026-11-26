@@ -18,7 +18,7 @@ struct PlayerView: View {
     @State private var err: String?
     @State private var hint: String?
     @State private var rate: Float = 1.0
-    @State private var seekRequest: Double = 0     // 点“跳过 60 秒”时累加
+    @State private var seekRequest: Double = 0
     @State private var landscape: Bool = false
 
     var body: some View {
@@ -32,6 +32,8 @@ struct PlayerView: View {
                             rate: rate,
                             seekTo: seekRequest,
                             onNoAudio: { hint = "这条线路可能真的没声音，试着换一条线路" },
+                            onReady: nil,
+                            onFail: nil,
                             onProgress: { pos, dur in
                                 store.recordProgress(title: title, pic: pic, site: site, line: line,
                                                      epName: epName, epURL: urlString,
@@ -51,48 +53,7 @@ struct PlayerView: View {
             }
 
             if real != nil {
-                HStack(spacing: 8) {
-                    Button {
-                        landscape.toggle()
-                        if landscape { Orientation.landscape() } else { Orientation.portrait() }
-                    } label: {
-                        Image(systemName: landscape ? "rectangle.portrait.arrowtriangle.2.inward"
-                                                    : "rectangle.landscape.rotate")
-                            .font(.caption.bold())
-                            .padding(.horizontal, 9).padding(.vertical, 6)
-                            .background(Color.black.opacity(0.55))
-                            .foregroundColor(.white)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        seekRequest += 60
-                    } label: {
-                        Text("+60s")
-                            .font(.caption.bold())
-                            .padding(.horizontal, 10).padding(.vertical, 6)
-                            .background(Color.black.opacity(0.55))
-                            .foregroundColor(.white)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-
-                    Menu {
-                        ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { r in
-                            Button("\(r, specifier: "%g")x") { rate = Float(r) }
-                        }
-                    } label: {
-                        Text(rate == 1.0 ? "1x" : String(format: "%gx", rate))
-                            .font(.caption.bold())
-                            .padding(.horizontal, 10).padding(.vertical, 6)
-                            .background(Color.black.opacity(0.55))
-                            .foregroundColor(.white)
-                            .clipShape(Capsule())
-                    }
-                }
-                .padding(.top, 8)
-                .padding(.trailing, 12)
+                playbackTools
             }
 
             if let h = hint {
@@ -110,15 +71,50 @@ struct PlayerView: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            Orientation.landscape()
-            landscape = true
-        }
-        .onDisappear {
-            Orientation.unlock()
-            Orientation.portrait()
-        }
         .task { await resolve() }
+    }
+
+    private var playbackTools: some View {
+        HStack(spacing: 8) {
+            Button {
+                landscape.toggle()
+                if landscape { Orientation.landscape() } else { Orientation.portrait() }
+            } label: {
+                Image(systemName: landscape ? "rectangle.portrait.arrowtriangle.2.inward"
+                                            : "rectangle.landscape.rotate")
+                    .font(.caption.bold())
+                    .padding(.horizontal, 9).padding(.vertical, 6)
+                    .background(Color.black.opacity(0.55))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Button { seekRequest += 60 } label: {
+                Text("+60s")
+                    .font(.caption.bold())
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Color.black.opacity(0.55))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Menu {
+                ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { r in
+                    Button("\(r, specifier: "%g")x") { rate = Float(r) }
+                }
+            } label: {
+                Text(rate == 1.0 ? "1x" : String(format: "%gx", rate))
+                    .font(.caption.bold())
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Color.black.opacity(0.55))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(.top, 8)
+        .padding(.trailing, 12)
     }
 
     private func resolve() async {
@@ -135,7 +131,8 @@ struct PlayerView: View {
     }
 }
 
-/// 带 Referer 的 AVPlayer；离场彻底收摊（修返回闪退）
+/// 带 Referer 的 AVPlayer；离场彻底收摊。
+/// onFail 会在「加载失败」或「12 秒还没 ready」时触发，交给上层自动换源。
 struct VideoPlayer: UIViewControllerRepresentable {
     let url: URL
     let headers: [String: String]
@@ -143,10 +140,12 @@ struct VideoPlayer: UIViewControllerRepresentable {
     var rate: Float = 1.0
     var seekTo: Double = 0
     var onNoAudio: (() -> Void)? = nil
+    var onReady: (() -> Void)? = nil
+    var onFail: (() -> Void)? = nil
     var onProgress: ((Double, Double) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onNoAudio: onNoAudio, onProgress: onProgress)
+        Coordinator(onNoAudio: onNoAudio, onReady: onReady, onFail: onFail, onProgress: onProgress)
     }
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
@@ -162,7 +161,6 @@ struct VideoPlayer: UIViewControllerRepresentable {
         let vc = AVPlayerViewController()
         vc.player = player
         vc.showsPlaybackControls = true
-        vc.entersFullScreenWhenPlaybackBegins = true
 
         context.coordinator.attach(player: player, item: item, resumeAt: resumeAt, rate: rate)
         return vc
@@ -181,17 +179,25 @@ struct VideoPlayer: UIViewControllerRepresentable {
 
     final class Coordinator {
         private let onNoAudio: (() -> Void)?
+        private let onReady: (() -> Void)?
+        private let onFail: (() -> Void)?
         private let onProgress: ((Double, Double) -> Void)?
+
         private var obs: NSKeyValueObservation?
         private var timeObs: Any?
+        private var watchdog: DispatchWorkItem?
         private var checked = false
+        private var failed = false
         private var lastRate: Float = 1.0
         private var lastSeek: Double = 0
         private weak var player: AVPlayer?
         private var item: AVPlayerItem?
 
-        init(onNoAudio: (() -> Void)?, onProgress: ((Double, Double) -> Void)?) {
+        init(onNoAudio: (() -> Void)?, onReady: (() -> Void)?,
+             onFail: (() -> Void)?, onProgress: ((Double, Double) -> Void)?) {
             self.onNoAudio = onNoAudio
+            self.onReady = onReady
+            self.onFail = onFail
             self.onProgress = onProgress
         }
 
@@ -202,14 +208,32 @@ struct VideoPlayer: UIViewControllerRepresentable {
             self.item = item
             self.lastRate = rate
 
-            obs = item.observe(\.status, options: [.new]) { [weak self] it, _ in
-                guard let self = self, it.status == .readyToPlay else { return }
+            // 12 秒还没 ready 就认为这条线路不行
+            let wd = DispatchWorkItem { [weak self] in
+                guard let self = self, !self.failed else { return }
+                if item.status != .readyToPlay {
+                    self.fail()
+                }
+            }
+            watchdog = wd
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: wd)
+
+            obs = item.observe(\.status, options: [.new, .initial]) { [weak self] it, _ in
+                guard let self = self else { return }
+                if it.status == .failed {
+                    self.fail()
+                    return
+                }
+                guard it.status == .readyToPlay else { return }
+                self.watchdog?.cancel()
                 if resumeAt > 5 {
                     player.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600),
-                                toleranceBefore: .zero, toleranceAfter: CMTime(seconds: 2, preferredTimescale: 600))
+                                toleranceBefore: .zero,
+                                toleranceAfter: CMTime(seconds: 2, preferredTimescale: 600))
                 }
                 player.play()
                 if rate != 1.0 { player.rate = rate }
+                self.onReady?()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                     guard !self.checked else { return }
                     self.checked = true
@@ -220,18 +244,22 @@ struct VideoPlayer: UIViewControllerRepresentable {
             }
 
             timeObs = player.addPeriodicTimeObserver(
-                forInterval: CMTime(seconds: 5, preferredTimescale: 600),
-                queue: .main
+                forInterval: CMTime(seconds: 5, preferredTimescale: 600), queue: .main
             ) { [weak self] t in
                 guard let self = self, let it = self.item else { return }
                 let dur = it.duration.seconds
                 let pos = t.seconds
                 if pos.isFinite, pos > 0 {
-                    DispatchQueue.main.async {
-                        self.onProgress?(pos, dur.isFinite ? dur : 0)
-                    }
+                    DispatchQueue.main.async { self.onProgress?(pos, dur.isFinite ? dur : 0) }
                 }
             }
+        }
+
+        private func fail() {
+            guard !failed else { return }
+            failed = true
+            watchdog?.cancel()
+            DispatchQueue.main.async { self.onFail?() }
         }
 
         func apply(rate: Float, seekTo: Double) {
@@ -248,6 +276,8 @@ struct VideoPlayer: UIViewControllerRepresentable {
         }
 
         func stop() {
+            watchdog?.cancel()
+            watchdog = nil
             if let t = timeObs, let p = player { p.removeTimeObserver(t) }
             timeObs = nil
             obs?.invalidate()
