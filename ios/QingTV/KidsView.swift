@@ -41,7 +41,7 @@ struct KidsView: View {
                         HStack(spacing: 8) {
                             Text("🧸").font(.title2)
                             Text("小朋友，今天看点什么？")
-                                .font(.subheadline).bold()
+                                .font(.subheadline.bold())
                                 .foregroundColor(Theme.text)
                                 .lineLimit(1)
                             Spacer(minLength: 0)
@@ -103,7 +103,7 @@ struct KidsView: View {
     private var hotRow: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("小朋友最爱")
-                .font(.footnote).bold()
+                .font(.footnote.bold())
                 .foregroundColor(Theme.warm)
                 .padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
@@ -111,7 +111,7 @@ struct KidsView: View {
                     ForEach(hot, id: \.self) { t in
                         NavigationLink(destination: DetailView(title: t, pic: "", rate: "")) {
                             Text(t)
-                                .font(.footnote).bold()
+                                .font(.footnote.bold())
                                 .padding(.horizontal, 14).padding(.vertical, 10)
                                 .background(Theme.warm.opacity(0.22))
                                 .foregroundColor(Theme.text)
