@@ -168,19 +168,35 @@ struct DiscoverView: View {
     }
 
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
-        LazyVGrid(columns: columns(cw), spacing: 14) {
-            ForEach(items) { it in
-                Button {
-                    playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate, doubanID: it.id, kind: tabs[tab].0)
-                } label: {
-                    card(it, cw: cw, ch: ch)
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
-                        Label("查看详情 / 选线路", systemImage: "list.bullet")
+        // 手写三列：每列宽度精确到像素，左右边距完全相等，LazyVGrid 的分配差异一律绕开
+        let rows: [[DoubanItem]] = stride(from: 0, to: items.count, by: 3).map {
+            Array(items[$0 ..< min($0 + 3, items.count)])
+        }
+        return VStack(spacing: 14) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: gap) {
+                    ForEach(row) { it in
+                        Button {
+                            playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate,
+                                                    doubanID: it.id, kind: tabs[tab].0)
+                        } label: {
+                            card(it, cw: cw, ch: ch)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: cw)
+                        .contextMenu {
+                            NavigationLink(destination: DetailView(title: it.name, pic: it.pic, rate: it.rate)) {
+                                Label("查看详情 / 选线路", systemImage: "list.bullet")
+                            }
+                        }
+                    }
+                    if row.count < 3 {
+                        ForEach(0 ..< (3 - row.count), id: \.self) { _ in
+                            Color.clear.frame(width: cw, height: 1)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .padding(.horizontal, hPad)
@@ -191,8 +207,7 @@ struct DiscoverView: View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topTrailing) {
                 NetImage(url: it.pic)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: ch)
+                    .frame(width: cw, height: ch)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10)
                         .stroke(Color.white.opacity(0.07), lineWidth: 1))
@@ -213,9 +228,9 @@ struct DiscoverView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .minimumScaleFactor(0.85)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: cw, alignment: .leading)
         }
-        .frame(maxWidth: .infinity)
+        .frame(width: cw)
     }
 
     private func skeletonGrid(cw: CGFloat, ch: CGFloat) -> some View {
