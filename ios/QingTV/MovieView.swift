@@ -50,6 +50,7 @@ struct MovieView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
                     playerBox
+                        .padding(.top, 6)
                     titleBlock
                     if !desc.isEmpty { descBlock }
                     actionRow
@@ -58,7 +59,6 @@ struct MovieView: View {
                 }
                 .padding(.bottom, 40)
             }
-            .ignoresSafeArea(edges: .top)
 
             if let t = toast {
                 VStack {
@@ -154,7 +154,7 @@ struct MovieView: View {
                         AirPlayButton().frame(width: 34, height: 34)
                     }
                     .padding(.horizontal, 10)
-                    .padding(.top, 46)
+                    .padding(.top, 10)
                     Spacer()
                 }
             }
