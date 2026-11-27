@@ -99,6 +99,15 @@ enum Defaults {
     static let subscription = "https://raw.githubusercontent.com/Lightconer/tvbox-ysc-config/main/output/多仓订阅.json"
 }
 
+struct DownloadItem: Codable, Identifiable, Hashable {
+    var id: String { fileName }
+    let fileName: String
+    let title: String
+    let pic: String
+    let size: Int64
+    let date: Date
+}
+
 final class Store: ObservableObject {
     @Published var sites: [Site] = Defaults.sites
     @Published var lives: [String] = Defaults.lives
@@ -108,6 +117,7 @@ final class Store: ObservableObject {
     @Published var history: [HistoryItem] = []
     @Published var favorites: [FavItem] = []
     @Published var searches: [String] = []
+    @Published var downloads: [DownloadItem] = []
 
     private let sitesKey = "qd_sites"
     private let livesKey = "qd_lives"
@@ -115,6 +125,7 @@ final class Store: ObservableObject {
     private let historyKey = "qd_history"
     private let favKey = "qd_fav"
     private let searchKey = "qd_search"
+    private let downloadKey = "qd_downloads"
 
     // 儿童模式
     @Published var kidsMode: Bool = false
@@ -126,6 +137,7 @@ final class Store: ObservableObject {
         load()
         loadKids()
         loadHistory()
+        loadDownloads()
     }
 
     // MARK: - 基础配置
@@ -288,4 +300,30 @@ struct PlayVideo: Identifiable {
     let line: String
     let epName: String
     let resumeAt: Double
+}
+
+
+extension Store {
+    func loadDownloads() {
+        if let d = UserDefaults.standard.data(forKey: downloadKey),
+           let v = try? JSONDecoder().decode([DownloadItem].self, from: d) {
+            downloads = v
+        }
+    }
+
+    func addDownload(fileName: String, title: String, pic: String, size: Int64) {
+        downloads.removeAll { $0.fileName == fileName }
+        downloads.insert(DownloadItem(fileName: fileName, title: title, pic: pic, size: size, date: Date()),
+                         at: 0)
+        if let d = try? JSONEncoder().encode(downloads) {
+            UserDefaults.standard.set(d, forKey: downloadKey)
+        }
+    }
+
+    func removeDownload(_ id: String) {
+        downloads.removeAll { $0.id == id }
+        if let d = try? JSONEncoder().encode(downloads) {
+            UserDefaults.standard.set(d, forKey: downloadKey)
+        }
+    }
 }
