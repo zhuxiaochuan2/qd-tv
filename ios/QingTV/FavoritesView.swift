@@ -57,7 +57,8 @@ struct FavoritesView: View {
             }
         }
         .fullScreenCover(item: $playTarget) { t in
-            AutoPlayView(title: t.title, pic: t.pic, rate: t.rate)
+            MovieView(title: t.title, pic: t.pic, rate: t.rate,
+                      doubanID: t.doubanID, kind: t.kind)
                 .environmentObject(store)
         }
         .navigationTitle("我的收藏")
