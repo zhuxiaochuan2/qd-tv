@@ -29,18 +29,15 @@ struct RootView: View {
     @EnvironmentObject var store: Store
 
     var body: some View {
-        Group {
-            TabView {
-                    DiscoverView()
-                        .tabItem { Label("发现", systemImage: "sparkles.tv") }
-                    LiveView()
-                        .tabItem { Label("直播", systemImage: "dot.radiowaves.left.and.right") }
-                    SettingsView()
-                        .tabItem { Label("我的", systemImage: "person.crop.circle") }
-                }
-                .tint(Theme.accent)
-            }
+        TabView {
+            DiscoverView()
+                .tabItem { Label("发现", systemImage: "sparkles.tv") }
+            LiveView()
+                .tabItem { Label("直播", systemImage: "dot.radiowaves.left.and.right") }
+            SettingsView()
+                .tabItem { Label("我的", systemImage: "person.crop.circle") }
         }
+        .tint(Theme.accent)
         .preferredColorScheme(.dark)
     }
 }
