@@ -95,7 +95,8 @@ struct KidsView: View {
                 }
                 .sheet(isPresented: $showPwd) { pwdSheet }
                 .fullScreenCover(item: $playTarget) { t in
-                    AutoPlayView(title: t.title, pic: t.pic, rate: t.rate)
+                    MovieView(title: t.title, pic: t.pic, rate: t.rate,
+                              doubanID: t.doubanID, kind: t.kind)
                         .environmentObject(store)
                 }
                 .task { if items.isEmpty { load() } }
@@ -141,7 +142,7 @@ struct KidsView: View {
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
-                Button { playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate) } label: {
+                Button { playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate, doubanID: it.id, kind: tabs[tab].0) } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         NetImage(url: it.pic)
                             .frame(width: cw, height: ch)
