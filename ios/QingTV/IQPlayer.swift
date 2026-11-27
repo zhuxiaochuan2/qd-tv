@@ -3,6 +3,18 @@ import AVFoundation
 import UIKit
 import MediaPlayer
 
+/// 投屏按钮（系统 AirPlay 路由选择器）
+struct AirPlayButton: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let v = AVRoutePickerView()
+        v.tintColor = .white
+        v.activeTintColor = .systemGreen
+        v.prioritizesVideoDevices = true
+        return v
+    }
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+}
+
 /// 系统音量控制（MPVolumeView 里的 UISlider 是唯一公开途径）
 final class VolumeControl {
     static let shared = VolumeControl()
@@ -64,6 +76,8 @@ struct IQPlayer: View {
     var onSource: (() -> Void)? = nil
     var onEpisodes: (() -> Void)? = nil
     var onClose: (() -> Void)? = nil
+    var compact: Bool = false          // 嵌在详情页顶部的小播放器
+    var onFullscreen: (() -> Void)? = nil   // 点全屏时交给外层做"真全屏"
 
     @Environment(\.presentationMode) private var pm
 
@@ -133,7 +147,7 @@ struct IQPlayer: View {
             .ignoresSafeArea()
 
             if showCtrl {
-                controls.transition(.opacity)
+                (compact ? AnyView(compactControls) : AnyView(controls)).transition(.opacity)
             }
 
             if let h = hudText {
@@ -301,6 +315,68 @@ struct IQPlayer: View {
             )
         }
         .padding(.bottom, 6)
+    }
+
+    // MARK: - 嵌入模式控件（详情页顶部）
+
+    private var compactControls: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    if let c = onClose { c() } else { pm.wrappedValue.dismiss() }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Color.black.opacity(0.35))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                AirPlayButton()
+                    .frame(width: 34, height: 34)
+
+                Button {
+                    if let f = onFullscreen { f() } else { toggleFullscreen() }
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Color.black.opacity(0.35))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button { togglePlay() } label: {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                Text(timeText(shownPos))
+                    .font(.system(size: 10, weight: .medium).monospacedDigit())
+                    .foregroundColor(.white)
+                seekBar
+                Text(timeText(duration))
+                    .font(.system(size: 10, weight: .medium).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .padding(.horizontal, 10)
+            .padding(.bottom, 8)
+            .background(
+                LinearGradient(colors: [.clear, Color.black.opacity(0.6)],
+                               startPoint: .top, endPoint: .bottom)
+            )
+        }
     }
 
     private var seekBar: some View {
