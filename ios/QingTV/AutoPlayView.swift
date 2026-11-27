@@ -54,7 +54,7 @@ struct AutoPlayView: View {
                          onFail: { skipToNext() },
                          onSource: { skipToNext() },
                          onEpisodes: { showPicker = true },
-                         onClose: { pm.wrappedValue.dismiss() })
+                         onClose: { Orientation.portrait(); pm.wrappedValue.dismiss() })
                     .id("\(li)-\(ei)-\(r)")
                     .ignoresSafeArea()
             } else {
