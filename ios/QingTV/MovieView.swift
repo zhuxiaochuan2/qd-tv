@@ -23,6 +23,7 @@ struct MovieView: View {
     @State private var started = false
     @State private var failCount = 0
     @State private var showAllEps = false
+    @State private var engine: AVPlayer?
 
     // 信息
     @State private var poster = ""
@@ -105,7 +106,8 @@ struct MovieView: View {
                          onEpisodes: { showAllEps = true },
                          onClose: { pm.wrappedValue.dismiss() },
                          compact: true,
-                         onFullscreen: { openLandscape() })
+                         onFullscreen: { openLandscape() },
+                         onEngine: { p in engine = p })
                     .id("\(li)-\(ei)-\(r)")
             } else {
                 // 还没开播：海报 + 播放键
@@ -345,6 +347,7 @@ struct MovieView: View {
         }
         let view = IQPlayer(url: u,
                             headers: headers,
+                            externalPlayer: engine,
                             title: title,
                             resumeAt: resumePosition(),
                             onProgress: { pos, dur in
