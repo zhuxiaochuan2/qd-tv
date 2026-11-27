@@ -30,16 +30,13 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if store.kidsMode {
-                KidsView()
-            } else {
-                TabView {
+            TabView {
                     DiscoverView()
                         .tabItem { Label("发现", systemImage: "sparkles.tv") }
                     LiveView()
                         .tabItem { Label("直播", systemImage: "dot.radiowaves.left.and.right") }
                     SettingsView()
-                        .tabItem { Label("设置", systemImage: "slider.horizontal.3") }
+                        .tabItem { Label("我的", systemImage: "person.crop.circle") }
                 }
                 .tint(Theme.accent)
             }
