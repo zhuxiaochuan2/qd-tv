@@ -396,7 +396,7 @@ struct MovieView: View {
             for s in store.sites.prefix(10) {
                 group.addTask { await Cms.search(s, kw: kw) }
             }
-            for siteHits in group {
+            for await siteHits in group {
                 for h in siteHits {
                     if accHits.contains(where: { $0.site == h.site && $0.name == h.name }) { continue }
                     accHits.append(h)
