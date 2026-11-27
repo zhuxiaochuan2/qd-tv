@@ -505,6 +505,17 @@ struct IQPlayer: View {
         }
     }
 
+    private func toggleFullscreen() {
+        if Orientation.isLandscapeNow {
+            Orientation.portrait()
+            flash("退出全屏")
+        } else {
+            Orientation.landscape()
+            flash("全屏")
+        }
+        scheduleHide()
+    }
+
     private func togglePlay() {
         guard let p = player else { return }
         if isPlaying {
