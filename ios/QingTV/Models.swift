@@ -273,6 +273,8 @@ struct PlayTarget: Identifiable {
     let title: String
     let pic: String
     let rate: String
+    var doubanID: String = ""
+    var kind: String = "movie"
 }
 
 
