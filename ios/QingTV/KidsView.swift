@@ -134,9 +134,9 @@ struct KidsView: View {
     }
 
     private func columns(_ cw: CGFloat) -> [GridItem] {
-        [GridItem(.fixed(cw), spacing: gap),
-         GridItem(.fixed(cw), spacing: gap),
-         GridItem(.fixed(cw), spacing: gap)]
+        [GridItem(.flexible(), spacing: gap),
+         GridItem(.flexible(), spacing: gap),
+         GridItem(.flexible(), spacing: gap)]
     }
 
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
@@ -145,7 +145,8 @@ struct KidsView: View {
                 Button { playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate, doubanID: it.id, kind: tabs[tab].0) } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         NetImage(url: it.pic)
-                            .frame(width: cw, height: ch)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: ch)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12)
                                 .stroke(Theme.warm.opacity(0.35), lineWidth: 1))
@@ -155,9 +156,9 @@ struct KidsView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .minimumScaleFactor(0.85)
-                            .frame(width: cw, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(width: cw)
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
             }
@@ -170,8 +171,8 @@ struct KidsView: View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(0..<6, id: \.self) { _ in
                 VStack(spacing: 6) {
-                    Skeleton(height: ch).frame(width: cw)
-                    Skeleton(height: 10).frame(width: cw)
+                    Skeleton(height: ch).frame(maxWidth: .infinity)
+                    Skeleton(height: 10).frame(maxWidth: .infinity)
                 }
             }
         }
