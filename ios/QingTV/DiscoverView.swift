@@ -73,6 +73,7 @@ struct DiscoverView: View {
                         }
                     }
                 }
+                .frame(width: geo.size.width, height: geo.size.height)
                 .navigationTitle("影匣")
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
@@ -175,6 +176,7 @@ struct DiscoverView: View {
         return VStack(spacing: 14) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(spacing: gap) {
+                    Spacer(minLength: 0)
                     ForEach(row) { it in
                         Button {
                             playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate,
@@ -195,11 +197,11 @@ struct DiscoverView: View {
                             Color.clear.frame(width: cw, height: 1)
                         }
                     }
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, hPad)
         .padding(.top, 10)
     }
 
