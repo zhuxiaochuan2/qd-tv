@@ -187,7 +187,9 @@ struct IQPlayer: View {
             start()
         }
         .onDisappear {
-            Orientation.portrait()        // 退出回竖屏
+            // 注意：这里绝对不能强制竖屏。
+            // 从详情页弹出横屏播放器时，底下这个播放器会触发 onDisappear，
+            // 一强制竖屏就把刚转过去的横屏又掰回来了。
             stop()
         }
     }
