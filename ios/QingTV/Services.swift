@@ -41,6 +41,41 @@ enum Douban {
 
 // MARK: - cms 站源
 
+
+/// 豆瓣条目详情（简介 / 类型 / 地区 / 年份）
+struct DoubanInfo {
+    var intro: String = ""
+    var genres: String = ""
+    var year: String = ""
+    var rate: String = ""
+}
+
+extension Douban {
+    /// 用 rexxar 接口取详情，必须带 Referer，否则 418
+    static func subject(_ id: String, kind: String = "movie") async -> DoubanInfo? {
+        guard !id.isEmpty else { return nil }
+        let url = "https://m.douban.com/rexxar/api/v2/\(kind)/\(id)"
+        guard let u = URL(string: url) else { return nil }
+        var req = URLRequest(url: u)
+        req.setValue("https://m.douban.com/", forHTTPHeaderField: "Referer")
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                     forHTTPHeaderField: "User-Agent")
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            var info = DoubanInfo()
+            info.intro = (obj["intro"] as? String) ?? ""
+            let genres = (obj["genres"] as? [String]) ?? []
+            info.genres = genres.joined(separator: " / ")
+            info.year = (obj["year"] as? String) ?? ""
+            if let rating = obj["rating"] as? [String: Any], let v = rating["value"] as? Double, v > 0 {
+                info.rate = String(format: "%.1f", v)
+            }
+            return info
+        } catch { return nil }
+    }
+}
+
 enum Cms {
     static let blockWords = ["youku", "qiyi", "qq", "mgtv", "bilibili", "letv", "sohu", "pptv",
                              "优酷", "爱奇艺", "腾讯", "芒果", "哔哩", "搜狐", "乐视"]
