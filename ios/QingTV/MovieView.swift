@@ -105,9 +105,9 @@ struct MovieView: View {
                          onSource: { skipToNext() },
                          onEpisodes: { showAllEps = true },
                          onClose: { pm.wrappedValue.dismiss() },
+                         onEngine: { p in engine = p },
                          compact: true,
-                         onFullscreen: { openLandscape() },
-                         onEngine: { p in engine = p })
+                         onFullscreen: { openLandscape() })
                     .id("\(li)-\(ei)-\(r)")
             } else {
                 // 还没开播：海报 + 播放键
@@ -347,7 +347,6 @@ struct MovieView: View {
         }
         let view = IQPlayer(url: u,
                             headers: headers,
-                            externalPlayer: engine,
                             title: title,
                             resumeAt: resumePosition(),
                             onProgress: { pos, dur in
@@ -359,7 +358,8 @@ struct MovieView: View {
                             onFail: { skipToNext() },
                             onSource: { skipToNext() },
                             onEpisodes: { showAllEps = true },
-                            onClose: { PlayerPresenter.dismiss() })
+                            onClose: { PlayerPresenter.dismiss() },
+                            externalPlayer: engine)
             .environmentObject(store)
         PlayerPresenter.present(view)
     }
