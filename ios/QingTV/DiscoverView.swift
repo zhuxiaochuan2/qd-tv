@@ -60,9 +60,6 @@ struct DiscoverView: View {
 
                         ScrollView(.vertical, showsIndicators: false) {
                             VStack(spacing: 0) {
-                                if !isSearchResult && !store.history.isEmpty {
-                                    continueRow(cw: cw, ch: ch)
-                                }
                                 if loading && items.isEmpty {
                                     skeletonGrid(cw: cw, ch: ch)
                                 } else {
