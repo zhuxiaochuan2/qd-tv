@@ -11,9 +11,9 @@ struct FavoritesView: View {
         GeometryReader { geo in
             let cw = max(80, floor((geo.size.width - hPad * 2 - gap * 2) / 3))
             let ch = floor(cw * 1.48)
-            let cols = [GridItem(.fixed(cw), spacing: gap),
-                        GridItem(.fixed(cw), spacing: gap),
-                        GridItem(.fixed(cw), spacing: gap)]
+            let cols = [GridItem(.flexible(), spacing: gap),
+                        GridItem(.flexible(), spacing: gap),
+                        GridItem(.flexible(), spacing: gap)]
 
             ZStack {
                 BrandBackground()
@@ -30,7 +30,8 @@ struct FavoritesView: View {
                                 Button { playTarget = PlayTarget(title: f.title, pic: f.pic, rate: f.rate) } label: {
                                     VStack(alignment: .leading, spacing: 6) {
                                         NetImage(url: f.pic)
-                                            .frame(width: cw, height: ch)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: ch)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
                                             .overlay(RoundedRectangle(cornerRadius: 10)
                                                 .stroke(Color.white.opacity(0.07), lineWidth: 1))
@@ -38,9 +39,9 @@ struct FavoritesView: View {
                                             .font(.caption).foregroundColor(Theme.text)
                                             .lineLimit(1).truncationMode(.tail)
                                             .minimumScaleFactor(0.85)
-                                            .frame(width: cw, alignment: .leading)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                     }
-                                    .frame(width: cw)
+                                    .frame(maxWidth: .infinity)
                                     .contextMenu {
                                         Button("取消收藏", role: .destructive) {
                                             store.toggleFav(title: f.title, pic: f.pic, rate: f.rate)
