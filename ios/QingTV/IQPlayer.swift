@@ -77,12 +77,15 @@ struct IQPlayer: View {
     var onSource: (() -> Void)? = nil
     var onEpisodes: (() -> Void)? = nil
     var onClose: (() -> Void)? = nil
+    var externalPlayer: AVPlayer? = nil     // 传进来就复用（横屏切换不重新加载）
+    var onEngine: ((AVPlayer) -> Void)? = nil   // 把内部创建的 player 交给外层保管
     var compact: Bool = false          // 嵌在详情页顶部的小播放器
     var onFullscreen: (() -> Void)? = nil   // 点全屏时交给外层做"真全屏"
 
     @Environment(\.presentationMode) private var pm
 
     @State private var player: AVPlayer?
+    @State private var owningPlayer = true
     @State private var timeObs: Any?
     @State private var statusObs: NSKeyValueObservation?
     @State private var isPlaying = false
@@ -424,28 +427,51 @@ struct IQPlayer: View {
         try? s.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .allowBluetooth])
         try? s.setActive(true)
 
-        var options: [String: Any] = [:]
-        if !headers.isEmpty { options["AVURLAssetHTTPHeaderFieldsKey"] = headers }
-        let asset = AVURLAsset(url: url, options: options)
-        let item = AVPlayerItem(asset: asset)
-        let p = AVPlayer(playerItem: item)
-        p.isMuted = false
-        p.volume = 1.0
-        p.allowsExternalPlayback = true
+        var item: AVPlayerItem?
+        let p: AVPlayer
 
-        statusObs = item.observe(\.status, options: [.new, .initial]) { it, _ in
-            if it.status == .failed { DispatchQueue.main.async { onFail?() } }
-            if it.status == .readyToPlay {
+        if let ext = externalPlayer, let cur = ext.currentItem {
+            // 复用已有播放器：不重建、不 seek、不重播
+            p = ext
+            item = cur
+            owningPlayer = false
+            if ext.rate > 0 { isPlaying = true }
+            let d0 = cur.duration.seconds
+            if d0.isFinite, d0 > 0 { duration = d0 }
+            let p0 = ext.currentTime().seconds
+            if p0.isFinite { position = p0 }
+        } else {
+            var options: [String: Any] = [:]
+            if !headers.isEmpty { options["AVURLAssetHTTPHeaderFieldsKey"] = headers }
+            let asset = AVURLAsset(url: url, options: options)
+            let it = AVPlayerItem(asset: asset)
+            let np = AVPlayer(playerItem: it)
+            np.isMuted = false
+            np.volume = 1.0
+            np.allowsExternalPlayback = true
+            p = np
+            item = it
+            owningPlayer = true
+            onEngine?(np)
+        }
+
+        guard let it = item else { return }
+
+        statusObs = it.observe(\.status, options: [.new, .initial]) { st, _ in
+            if st.status == .failed { DispatchQueue.main.async { onFail?() } }
+            if st.status == .readyToPlay {
                 DispatchQueue.main.async {
-                    if resumeAt > 5 {
+                    if owningPlayer, resumeAt > 5 {
                         p.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600),
                                toleranceBefore: .zero,
                                toleranceAfter: CMTime(seconds: 2, preferredTimescale: 600))
                         position = resumeAt
                     }
-                    p.play()
-                    isPlaying = true
-                    duration = it.duration.seconds.isFinite ? it.duration.seconds : 0
+                    if owningPlayer {
+                        p.play()
+                        isPlaying = true
+                    }
+                    duration = st.duration.seconds.isFinite ? st.duration.seconds : 0
                     scheduleHide()
                 }
             }
@@ -457,7 +483,7 @@ struct IQPlayer: View {
             guard !dragging else { return }
             let pos = t.seconds
             if pos.isFinite { position = pos }
-            let d = item.duration.seconds
+            let d = it.duration.seconds
             if d.isFinite, d > 0 { duration = d }
             if let cb = onProgress, pos.isFinite, pos > 0 { cb(pos, d.isFinite ? d : 0) }
         }
@@ -469,23 +495,14 @@ struct IQPlayer: View {
 
     private func stop() {
         hideTask?.cancel()
-        if let o = timeObs { player?.removeTimeObserver(o) }
+        if let o = timeObs, let p = player { p.removeTimeObserver(o) }
         timeObs = nil
         statusObs?.invalidate()
         statusObs = nil
-        player?.pause()
-        player = nil
-    }
-
-    private func toggleFullscreen() {
-        if Orientation.isLandscapeNow {
-            Orientation.portrait()
-            flash("退出全屏")
-        } else {
-            Orientation.landscape()
-            flash("全屏")
+        if owningPlayer {
+            player?.pause()
+            player = nil
         }
-        scheduleHide()
     }
 
     private func togglePlay() {
