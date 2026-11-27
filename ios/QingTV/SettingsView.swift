@@ -112,7 +112,7 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("关于")) {
-                    Text("影匣 2.0.1 · 纯客户端壳，不含任何内容").font(.caption)
+                    Text("影匣 2.1.0 · 纯客户端壳，不含任何内容").font(.caption)
                     Text("发现用豆瓣，播放靠 cms 搜索匹配。无广告、无登录、无推送。").font(.caption2).foregroundColor(.secondary)
                 }
             }
