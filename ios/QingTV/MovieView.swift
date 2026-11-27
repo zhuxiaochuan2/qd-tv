@@ -24,6 +24,7 @@ struct MovieView: View {
     @State private var failCount = 0
     @State private var showAllEps = false
     @State private var engine: AVPlayer?
+    @State private var engineKey = ""
 
     // 信息
     @State private var poster = ""
@@ -104,8 +105,13 @@ struct MovieView: View {
                          onFail: { skipToNext() },
                          onSource: { skipToNext() },
                          onEpisodes: { showAllEps = true },
-                         onClose: { pm.wrappedValue.dismiss() },
-                         onEngine: { p in engine = p },
+                         onClose: {
+                             engine?.pause()
+                             engine = nil
+                             Orientation.portrait()
+                             pm.wrappedValue.dismiss()
+                         },
+                         externalPlayer: engine,
                          compact: true,
                          onFullscreen: { openLandscape() })
                     .id("\(li)-\(ei)-\(r)")
@@ -366,6 +372,30 @@ struct MovieView: View {
 
     // MARK: - 数据
 
+    private func buildEngine(url: String, key: String) {
+        if engineKey == key, engine != nil { return }
+        engine?.pause()
+        engine = nil
+        guard let u = URL(string: url) else { return }
+        var opts: [String: Any] = [:]
+        if !headers.isEmpty { opts["AVURLAssetHTTPHeaderFieldsKey"] = headers }
+        let item = AVPlayerItem(asset: AVURLAsset(url: u, options: opts))
+        let p = AVPlayer(playerItem: item)
+        p.isMuted = false
+        p.volume = 1.0
+        p.allowsExternalPlayback = true
+        p.automaticallyWaitsToMinimizeStalling = true
+        let resume = resumePosition()
+        if resume > 5 {
+            p.seek(to: CMTime(seconds: resume, preferredTimescale: 600),
+                   toleranceBefore: .zero,
+                   toleranceAfter: CMTime(seconds: 2, preferredTimescale: 600))
+        }
+        p.play()
+        engine = p
+        engineKey = key
+    }
+
     private func resumePosition() -> Double {
         guard let ep = curEp, let h = store.historyItem(for: title), h.epURL == ep.url else { return 0 }
         return h.position
@@ -425,6 +455,7 @@ struct MovieView: View {
                 if let m = m {
                     headers = h
                     real = m
+                    buildEngine(url: m, key: "\(li)-\(ei)-\(m)")
                 } else {
                     skipToNext()
                 }
