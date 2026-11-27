@@ -82,7 +82,8 @@ struct DiscoverView: View {
                 }
                 .sheet(isPresented: $showSearch) { searchSheet }
                 .fullScreenCover(item: $playTarget) { t in
-                    AutoPlayView(title: t.title, pic: t.pic, rate: t.rate)
+                    MovieView(title: t.title, pic: t.pic, rate: t.rate,
+                              doubanID: t.doubanID, kind: t.kind)
                         .environmentObject(store)
                 }
                 .fullScreenCover(item: $resumeTarget) { v in
@@ -169,7 +170,7 @@ struct DiscoverView: View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(items) { it in
                 Button {
-                    playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate)
+                    playTarget = PlayTarget(title: it.name, pic: it.pic, rate: it.rate, doubanID: it.id, kind: tabs[tab].0)
                 } label: {
                     card(it, cw: cw, ch: ch)
                 }
