@@ -35,7 +35,7 @@ struct PlayerView: View {
                          onFail: nil,
                          onSource: nil,
                          onEpisodes: nil,
-                         onClose: { pm.wrappedValue.dismiss() })
+                         onClose: { Orientation.portrait(); pm.wrappedValue.dismiss() })
                     .ignoresSafeArea()
             } else if let e = err {
                 VStack(spacing: 10) {
