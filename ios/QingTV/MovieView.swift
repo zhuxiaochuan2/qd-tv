@@ -34,6 +34,8 @@ struct MovieView: View {
     @State private var year = ""
     @State private var descOpen = false
     @State private var toast: String?
+    @State private var isDownloading = false
+    @State private var dlProgress: Double = 0
 
     private var curLine: PlayLine? {
         guard !lines.isEmpty, li < lines.count else { return nil }
@@ -235,7 +237,8 @@ struct MovieView: View {
                 store.toggleFav(title: title, pic: poster.isEmpty ? pic : poster, rate: score)
                 flash(store.isFav(title) ? "已收藏" : "已取消收藏")
             }
-            actionButton("arrow.down.circle", "下载", tint: Theme.text) { flash("下载功能还没做") }
+            actionButton("arrow.down.circle", isDownloading ? "\(Int(dlProgress * 100))%" : "下载",
+                         tint: isDownloading ? Theme.warm : Theme.text) { startDownload() }
             actionButton("square.and.arrow.up", "分享", tint: Theme.text) { share() }
             actionButton("arrow.triangle.2.circlepath", "换源", tint: Theme.text) { skipToNext() }
         }
@@ -481,6 +484,38 @@ struct MovieView: View {
             status = "所有线路都播不了"
             exhausted = true
             real = nil
+        }
+    }
+
+    private func startDownload() {
+        guard !isDownloading else { return }
+        guard let r = real else {
+            flash("先让片子播起来再点下载")
+            return
+        }
+        let epName = curEp?.name ?? ""
+        let name = "影匣 \(title) \(epName)"
+        isDownloading = true
+        dlProgress = 0
+        let h = headers
+        flash("开始下载 \(epName)")
+        Task {
+            do {
+                let file = try await Downloader.shared.download(m3u8: r, headers: h, name: name) { p in
+                    Task { @MainActor in dlProgress = p }
+                }
+                let size = Downloader.shared.size(file)
+                await MainActor.run {
+                    store.addDownload(fileName: file, title: title, pic: poster, size: size)
+                    isDownloading = false
+                    flash("下载完成，去「我的 → 我的下载」看")
+                }
+            } catch {
+                await MainActor.run {
+                    isDownloading = false
+                    flash("下载失败：加密流或源不允许")
+                }
+            }
         }
     }
 
