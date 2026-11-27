@@ -22,7 +22,6 @@ struct MovieView: View {
     @State private var exhausted = false
     @State private var started = false
     @State private var failCount = 0
-    @State private var showFull = false
     @State private var showAllEps = false
 
     // 信息
@@ -74,7 +73,6 @@ struct MovieView: View {
                 .allowsHitTesting(false)
             }
         }
-        .fullScreenCover(isPresented: $showFull) { fullPlayer }
         .task {
             if poster.isEmpty { poster = pic }
             if score.isEmpty { score = rate }
@@ -107,7 +105,7 @@ struct MovieView: View {
                          onEpisodes: { showAllEps = true },
                          onClose: { pm.wrappedValue.dismiss() },
                          compact: true,
-                         onFullscreen: { showFull = true })
+                         onFullscreen: { openLandscape() })
                     .id("\(li)-\(ei)-\(r)")
             } else {
                 // 还没开播：海报 + 播放键
@@ -338,32 +336,29 @@ struct MovieView: View {
         }
     }
 
-    // MARK: - 真全屏
+    // MARK: - 真全屏（直接横屏）
 
-    private var fullPlayer: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            if let r = real, let u = URL(string: r) {
-                IQPlayer(url: u,
-                         headers: headers,
-                         title: title,
-                         resumeAt: resumePosition(),
-                         onProgress: { pos, dur in
-                             guard let ep = curEp, let l = curLine else { return }
-                             store.recordProgress(title: title, pic: poster, site: l.site, line: l.name,
-                                                  epName: ep.name, epURL: ep.url,
-                                                  position: pos, duration: dur)
-                         },
-                         onFail: { skipToNext() },
-                         onSource: { skipToNext() },
-                         onEpisodes: { showAllEps = true },
-                         onClose: { showFull = false })
-                    .id("full-\(li)-\(ei)-\(r)")
-                    .ignoresSafeArea()
-            }
+    private func openLandscape() {
+        guard let r = real, let u = URL(string: r) else {
+            flash("还没开播")
+            return
         }
-        .onAppear { Orientation.landscape() }
-        .onDisappear { Orientation.portrait() }
+        let view = IQPlayer(url: u,
+                            headers: headers,
+                            title: title,
+                            resumeAt: resumePosition(),
+                            onProgress: { pos, dur in
+                                guard let ep = curEp, let l = curLine else { return }
+                                store.recordProgress(title: title, pic: poster, site: l.site, line: l.name,
+                                                     epName: ep.name, epURL: ep.url,
+                                                     position: pos, duration: dur)
+                            },
+                            onFail: { skipToNext() },
+                            onSource: { skipToNext() },
+                            onEpisodes: { showAllEps = true },
+                            onClose: { PlayerPresenter.dismiss() })
+            .environmentObject(store)
+        PlayerPresenter.present(view)
     }
 
     // MARK: - 数据
