@@ -29,8 +29,8 @@ struct DiscoverView: View {
     var body: some View {
         NavigationView {
             GeometryReader { geo in
-                let cw = max(80, floor((geo.size.width - hPad * 2 - gap * 2) / 3))
-                let ch = floor(cw * 1.48)
+                let cw = max(80, (geo.size.width - hPad * 2 - gap * 2) / 3)
+                let ch = cw * 1.48
 
                 ZStack {
                     BrandBackground()
