@@ -49,6 +49,7 @@ struct MovieView: View {
     var body: some View {
         ZStack(alignment: .top) {
             Theme.bgTop.ignoresSafeArea()
+                .contentShape(Rectangle())
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
@@ -62,6 +63,16 @@ struct MovieView: View {
                 }
                 .padding(.bottom, 40)
             }
+
+            // 左边缘 24pt：往右拖 = 返回（不影响中间上下滚动）
+            HStack {
+                Color.clear
+                    .frame(width: 24)
+                    .contentShape(Rectangle())
+                    .gesture(edgeBackGesture)
+                Spacer()
+            }
+            .ignoresSafeArea()
 
             if let t = toast {
                 VStack {
@@ -86,6 +97,22 @@ struct MovieView: View {
                 await loadSources()
             }
         }
+    }
+
+    /// 从屏幕左边缘往右拖 → 关闭当前页
+    private var edgeBackGesture: some Gesture {
+        DragGesture(minimumDistance: 15)
+            .onEnded { v in
+                let startX = v.startLocation.x
+                let dx = v.translation.width
+                let dy = abs(v.translation.height)
+                if startX < 32, dx > 80, dx > dy * 1.5 {
+                    engine?.pause()
+                    engine = nil
+                    Orientation.portrait()
+                    pm.wrappedValue.dismiss()
+                }
+            }
     }
 
     // MARK: - 播放器区
@@ -281,28 +308,35 @@ struct MovieView: View {
             if lines.isEmpty {
                 Text(status).font(.caption2).foregroundColor(Theme.dim).padding(.horizontal, 14)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(lines.enumerated()), id: \.element.id) { i, l in
-                            Button {
-                                li = i
-                                ei = 0
-                                playCurrent()
-                            } label: {
-                                VStack(spacing: 1) {
-                                    Text(l.site).font(.system(size: 9)).opacity(0.8)
-                                    Text(l.name).font(.caption.bold())
-                                }
-                                .padding(.horizontal, 12).padding(.vertical, 7)
-                                .background(i == li ? Theme.accent : Theme.card)
-                                .foregroundColor(i == li ? .white : Theme.text)
-                                .clipShape(RoundedRectangle(cornerRadius: 9))
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5),
+                          spacing: 8) {
+                    ForEach(Array(lines.enumerated()), id: \.element.id) { i, l in
+                        Button {
+                            li = i
+                            ei = 0
+                            playCurrent()
+                        } label: {
+                            VStack(spacing: 1) {
+                                Text(l.site)
+                                    .font(.system(size: 9))
+                                    .opacity(0.8)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
+                                Text(l.name)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
                             }
-                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 7)
+                            .background(i == li ? Theme.accent : Theme.card)
+                            .foregroundColor(i == li ? .white : Theme.text)
+                            .clipShape(RoundedRectangle(cornerRadius: 9))
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 14)
                 }
+                .padding(.horizontal, 14)
             }
         }
     }
