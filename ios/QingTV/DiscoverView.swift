@@ -161,9 +161,10 @@ struct DiscoverView: View {
     // MARK: - 网格
 
     private func columns(_ cw: CGFloat) -> [GridItem] {
-        [GridItem(.fixed(cw), spacing: gap),
-         GridItem(.fixed(cw), spacing: gap),
-         GridItem(.fixed(cw), spacing: gap)]
+        // 用弹性列：三列自动均分剩余宽度，绝不会有右边多出空白的偏移
+        [GridItem(.flexible(), spacing: gap),
+         GridItem(.flexible(), spacing: gap),
+         GridItem(.flexible(), spacing: gap)]
     }
 
     private func grid(cw: CGFloat, ch: CGFloat) -> some View {
@@ -190,7 +191,8 @@ struct DiscoverView: View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topTrailing) {
                 NetImage(url: it.pic)
-                    .frame(width: cw, height: ch)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: ch)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10)
                         .stroke(Color.white.opacity(0.07), lineWidth: 1))
@@ -211,17 +213,17 @@ struct DiscoverView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .minimumScaleFactor(0.85)
-                .frame(width: cw, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: cw)
+        .frame(maxWidth: .infinity)
     }
 
     private func skeletonGrid(cw: CGFloat, ch: CGFloat) -> some View {
         LazyVGrid(columns: columns(cw), spacing: 14) {
             ForEach(0..<9, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 6) {
-                    Skeleton(height: ch).frame(width: cw)
-                    Skeleton(height: 10).frame(width: cw)
+                    Skeleton(height: ch).frame(maxWidth: .infinity)
+                    Skeleton(height: 10).frame(maxWidth: .infinity)
                 }
             }
         }
